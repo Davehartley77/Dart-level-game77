@@ -1,5 +1,5 @@
 /* Saved by the Bull: works offline once installed. VERSION is stamped at each publish. */
-const VERSION = "20260913-185128";
+const VERSION = "20260913-185448";
 const SHELL_CACHE = "shell-" + VERSION;
 const ASSET_CACHE = "assets-v1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png", "./images/icon-maskable.png"];
@@ -36,6 +36,12 @@ self.addEventListener("fetch", e => {
     // the page itself: network first so updates arrive, cache when offline
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(SHELL_CACHE).then(c => c.put("./index.html", copy)); return r; })
       .catch(() => caches.match("./index.html")));
+    return;
+  }
+  // lists (the voice manifest and names): network first so new phrases are picked up, cache when offline
+  if (url.origin === location.origin && /\.(txt|json)$/.test(url.pathname)) {
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const copy = r.clone(); caches.open(ASSET_CACHE).then(c => c.put(new Request(url.href), copy)); } return r; })
+      .catch(() => caches.match(new Request(url.href)).then(r => r || new Response("", { status: 504 }))));
     return;
   }
   // everything else (voice clips, icons, fonts): cache first, then network and keep it

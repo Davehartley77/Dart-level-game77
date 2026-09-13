@@ -1007,7 +1007,7 @@
   function loadBank(v) {
     if (bank.status[v]) return bank.status[v];
     if (location.protocol === "file:" || !BANKS[v]) return (bank.status[v] = Promise.resolve(false));
-    bank.status[v] = Promise.all([fetch(bankBase(v) + "manifest.txt"), fetch(bankBase(v) + "names.txt")]).then(async ([m, n]) => {
+    bank.status[v] = Promise.all([fetch(bankBase(v) + "manifest.txt", { cache: "no-cache" }), fetch(bankBase(v) + "names.txt", { cache: "no-cache" })]).then(async ([m, n]) => {
       if (!m.ok) return false;
       bank.manifest[v] = new Set((await m.text()).split(/\s+/).filter(Boolean));
       bank.names[v] = new Set(n.ok ? (await n.text()).split(/\s+/).filter(Boolean) : []);
@@ -1069,7 +1069,7 @@
     for (const t of tokens) {
       if (t && t.name) { const sl = slugName(t.name); if (bank.names[v].has(sl)) urls.push(bankBase(v) + "name-" + sl + ".m4a"); continue; }
       const key = typeof t === "number" ? "n-" + t : t;
-      if (!bank.manifest[v].has(key)) return null;
+      if (!bank.manifest[v].has(key)) { if (typeof t === "number") return null; continue; } // a number we can't say means the device voice takes the line; an unknown phrase is just skipped
       urls.push(bankBase(v) + key + ".m4a");
     }
     return urls;
