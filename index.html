@@ -64,7 +64,11 @@
   .bully-mark svg { width: 100%; height: auto; display: block; }
   @media (max-width: 520px) { .bully-mark { width: 60px; } }
   /* Bully as a big faint watermark in the corner */
-  #bullyWatermark { position: fixed; right: -6vmin; bottom: -6vmin; width: 104vmin; opacity: .32; pointer-events: none; z-index: 0; filter: saturate(.85); }
+  #bullyWatermark { position: fixed; right: -6vmin; bottom: -6vmin; width: 104vmin; opacity: .9; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
+  /* cards get a little more body so they read over a full-colour Bully */
+  .card, .pcard { background: rgba(26,90,63,.94); }
+  .turn { box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
+  .masthead { background: rgba(15,61,42,.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); border-radius: 12px; padding-left: 12px; padding-right: 12px; }
   #bullyWatermark svg { width: 100%; height: auto; display: block; }
   .wrap { position: relative; z-index: 1; }
   .avatar svg { width: 100%; height: 100%; display: block; }
