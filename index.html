@@ -1422,6 +1422,13 @@
     if (killer) { const hint = document.createElement("p"); hint.className = "rules-note"; hint.textContent = "Killer needs at least two players (Bully counts)."; const roster = el(".roster"); if (roster) roster.after(hint); }
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
+    app.querySelectorAll("[data-start]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, start: +b.dataset.start } })));
+    app.querySelectorAll("[data-legs]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, legs: +b.dataset.legs } })));
+    const customIn = el("#customIn");
+    if (customIn) customIn.addEventListener("input", () => {
+      const v = parseInt(customIn.value, 10);
+      if (v >= 5) { state.targetScore = v; state.customTarget = customIn.value; save(); const c = meta.querySelector(".chip strong"); if (c) c.textContent = v; app.querySelectorAll("[data-target]").forEach(b => b.setAttribute("aria-pressed", "false")); }
+    });
     const bl = el("#botLvl");
     bl.addEventListener("input", () => { state.botLevel = +bl.value; save(); el("#botLvlText").textContent = `Level ${state.botLevel} · ${botTitle(state.botLevel)} · averages about ${botAverage(state.botLevel)}`; });
     el("#addBot").addEventListener("click", () => {
