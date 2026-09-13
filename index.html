@@ -143,7 +143,10 @@
 
   .submit-row { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 420px) { .submit-row { grid-template-columns: 1fr; } }
-  .submit-row .btn { padding: 22px 16px; font-size: 28px; }
+  .submit-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 640px) { .submit-row.three { grid-template-columns: 1fr; } }
+  .submit-row .btn { padding: 22px 12px; font-size: 26px; }
+  .submit-row .btn.brass { font-size: 20px; line-height: 1.1; }
   .submit-row .btn small { display: block; font-size: 13px; letter-spacing: .12em; opacity: .85; margin-top: 4px; }
   .hint { text-align: center; color: #6b5a2c; font-size: 14px; margin: 12px 0 0; }
 
@@ -185,6 +188,9 @@
   .result { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; background: var(--green); color: var(--bone); animation: pop .25s ease-out; z-index: 2; }
   .result.miss { background: var(--red); }
   .result.neutral { background: var(--ink); }
+  .result.saved { background: var(--brass); color: var(--ink); }
+  .result.saved .big { text-shadow: 0 4px 0 rgba(0,0,0,.15); }
+  .result.saved .btn { background: var(--ink); color: var(--bone); }
   .result .big { font-family: var(--display); font-size: clamp(40px, 8vw, 72px); line-height: 1; text-shadow: 0 4px 0 rgba(0,0,0,.3); }
   .result .detail { font-family: var(--num); font-size: 22px; font-weight: 600; margin: 10px 0 18px; }
   .result .detail b { font-size: 30px; }
@@ -589,7 +595,8 @@
 
         <div class="card span2">
           ${bull ? `<h2>How the levels work</h2>${rulesTable()}
-          <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>`
+          <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>
+          <p class="rules-note"><strong style="color:var(--brass-2)">Saved by the Bull:</strong> if the checkout becomes impossible with the darts you have left (say you need 45, hit 19 then 5, and 21 can't be taken with one dart), throw the last dart at the bull. Hit it and nothing changes: no points lost, no level lost, you stay where you are and get a new checkout next turn.</p>`
           : `<h2>Checkout chart</h2>${checkoutChart()}
           <p class="rules-note">T is treble, D is double. The game shows the suggested route whenever a finish is on, and when it isn't, what to score to leave a good one.</p>`}
         </div>
@@ -688,6 +695,7 @@
       if (r.left) return `<li class="neutral"><span class="who"><b>${esc(r.player)}</b> left the game</span><span class="r">round ${r.round}</span></li>`;
       if (r.legWon) return `<li class="hit"><span class="who"><b>${esc(r.player)}</b> wins leg ${r.leg} on ${r.darts} dart${r.darts > 1 ? "s" : ""}</span><span class="r hit">${r.scored} out</span></li>`;
       if (state.mode === "x01") return `<li class="${r.bust ? "miss" : r.scored >= 100 ? "hit" : "neutral"}"><span class="who"><b>${esc(r.player)}</b> · ${r.bust ? "bust, still needs " + r.remaining : "leaves " + r.remaining}</span><span class="r ${r.bust ? "miss" : r.scored >= 100 ? "hit" : ""}">${r.bust ? "bust" : r.scored}</span></li>`;
+      if (r.saved) return `<li class="neutral"><span class="who"><b>${esc(r.player)}</b> · saved by the bull on ${r.target}, level ${r.fromLevel}</span><span class="r">0 → L${r.level}</span></li>`;
       return `<li class="${r.hit ? "hit" : "miss"}"><span class="who"><b>${esc(r.player)}</b> · ${r.hit ? "hit" : "missed"} ${r.target} on level ${r.fromLevel}</span><span class="r ${r.hit ? "hit" : "miss"}">${r.hit ? "+" + r.delta : (r.delta ? "−" + r.delta : "0")} → L${r.level}</span></li>`;
     }).join("")}</ul>`;
   }
@@ -723,11 +731,12 @@
                 ${CHECKOUTS[p.target] ? `<div class="worth" style="margin-top:6px">Route: <b>${routePretty(CHECKOUTS[p.target])}</b></div>` : ""}
               </div>
             </div>
-            <div class="submit-row">
+            <div class="submit-row three">
               <button class="btn" id="hitBtn" type="button">Hit<small>+${L.points} · up a level</small></button>
+              <button class="btn brass" id="bullBtn" type="button">Saved by the Bull<small>no change · stay on level ${p.level}</small></button>
               <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
-            <p class="hint">Throw three darts, then press one. Keyboard: H for hit, M for missed.</p>
+            <p class="hint">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.</p>
             ${state.result ? renderResultBull(state.result) : ""}
           </div>
           <details class="rules-drawer"><summary>Level table</summary><div class="card">${rulesTable()}</div></details>
@@ -740,14 +749,15 @@
       ${state.winner != null ? renderWinner() : ""}
       ${state.dialog ? renderDialog(state.dialog) : ""}`;
     drawBoard(el("#board"));
-    el("#hitBtn").addEventListener("click", () => submitBull(true));
-    el("#missBtn").addEventListener("click", () => submitBull(false));
+    el("#hitBtn").addEventListener("click", () => submitBull("hit"));
+    el("#bullBtn").addEventListener("click", () => submitBull("bull"));
+    el("#missBtn").addEventListener("click", () => submitBull("miss"));
     wirePlay();
   }
   function renderResultBull(r) {
-    return `<div class="result ${r.hit ? "hit" : "miss"}" role="status"><div>
-        <div class="big">${r.hit ? "HIT!" : "MISSED"}</div>
-        <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
+    return `<div class="result ${r.hit ? "hit" : r.saved ? "saved" : "miss"}" role="status"><div>
+        <div class="big">${r.hit ? "HIT!" : r.saved ? "SAVED BY THE BULL!" : "MISSED"}</div>
+        <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : r.saved ? `No points lost · stays on level ${r.level}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
         <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
     </div></div>`;
@@ -844,20 +854,23 @@
   }
 
   // ---------- game flow: Saved by the Bull ----------
-  function submitBull(hit) {
+  // outcome: "hit" | "miss" | "bull" (checkout impossible with the darts left, but the bull was hit: nothing changes)
+  function submitBull(outcome) {
     if (state.result || state.dialog || state.winner != null) return;
     const p = state.players[state.current];
     const L = LEVELS[p.level - 1];
     const before = p.level;
-    let delta;
+    const hit = outcome === "hit", saved = outcome === "bull";
+    let delta = 0;
     if (hit) { delta = L.points; p.score += delta; if (p.level < 5) p.level++; sfx.hit(); }
+    else if (saved) { sfx.hit(); }
     else { delta = L.penalty; p.score = Math.max(0, p.score - delta); p.level = L.failTo; sfx.miss(); }
     const usedTarget = p.target;
     p.target = randomTarget(p.level);
-    const result = { player: p.name, hit, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
+    const result = { player: p.name, hit, saved, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
     if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game shot! ${p.name} wins with ${p.score} points.`); return; }
-    speak(hit ? `Hit! ${delta} points. ${p.name} has ${p.score}.` : (delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`));
+    speak(hit ? `Hit! ${delta} points. ${p.name} has ${p.score}.` : saved ? `Saved by the bull! ${p.name} stays on level ${p.level}.` : (delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`));
     set({ result });
   }
 
@@ -948,7 +961,7 @@
     }
     if (state.mode === "bull") {
       const k = e.key.toLowerCase();
-      if (k === "h") { e.preventDefault(); submitBull(true); } else if (k === "m") { e.preventDefault(); submitBull(false); }
+      if (k === "h") { e.preventDefault(); submitBull("hit"); } else if (k === "m") { e.preventDefault(); submitBull("miss"); } else if (k === "b") { e.preventDefault(); submitBull("bull"); }
     } else {
       if (/^[0-9]$/.test(e.key)) { e.preventDefault(); const s = state.entry; if (s.length < 3) set({ entry: (s === "0" ? "" : s) + e.key, msg: "" }); }
       else if (e.key === "Backspace") { e.preventDefault(); set({ entry: state.entry.slice(0, -1) }); }
