@@ -496,3 +496,5 @@ throw-one-dart
 miss
 no-effect
 last-one-standing
+get-killing
+need-more-letters

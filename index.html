@@ -64,7 +64,8 @@
   .bully-mark svg { width: 100%; height: auto; display: block; }
   @media (max-width: 520px) { .bully-mark { width: 60px; } }
   /* Bully as a big faint watermark in the corner */
-  #bullyWatermark { position: fixed; right: -6vmin; bottom: -6vmin; width: 104vmin; opacity: .9; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
+  #bullyWatermark { position: fixed; left: 50%; transform: translateX(-50%); bottom: -56vmin; width: 112vmin; opacity: .92; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
+  @media (min-aspect-ratio: 1/1) { #bullyWatermark { left: auto; right: 2vw; transform: none; bottom: -50vmin; width: 96vmin; } }
   /* cards get a little more body so they read over a full-colour Bully */
   .card, .pcard { background: rgba(26,90,63,.94); }
   .turn { box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
@@ -267,7 +268,9 @@
   /* players */
   .players { display: grid; gap: 10px; }
   .pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; transition: border-color .2s, box-shadow .2s; }
-  .pcard.active { border-color: var(--brass); box-shadow: 0 0 0 2px rgba(201,162,75,.35), var(--shadow); }
+  .pcard.active { border: 3px solid var(--brass-2); background: rgba(35,110,78,.98); box-shadow: 0 0 0 4px rgba(242,184,59,.3), 0 0 26px rgba(242,184,59,.35), var(--shadow); transform: scale(1.03); position: relative; }
+  .pcard.active::before { content: "Throwing now"; position: absolute; top: -11px; left: 12px; font-family: var(--num); font-weight: 800; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; background: var(--brass-2); color: var(--ink); padding: 2px 8px; border-radius: 999px; }
+  .pcard { margin-top: 4px; }
   .pcard .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.3); font-family: var(--num); font-weight: 800; color: var(--ink); }
   .pcard .pname { font-weight: 700; font-size: 17px; }
   .pcard .sub { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
@@ -828,7 +831,7 @@
     const p = state.players[state.current]; if (!p) return;
     if (state.mode === "killer") {
       if (state.killer.phase === "pick") say([{ name: p.name }, "throw-one-dart"], { queue: true });
-      else say(p.letters >= 6 ? [{ name: p.name }, "killer"] : [{ name: p.name }, "your-number-is", p.number], { queue: true });
+      else say(p.letters >= 6 ? [{ name: p.name }, "get-killing"] : [{ name: p.name }, "need-more-letters"], { queue: true });
       return;
     }
     if (state.mode === "bull") {
@@ -982,7 +985,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!" };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1739,14 +1742,15 @@
       const others = state.players.map((q, i) => ({ q, i })).filter(({ q, i }) => i !== state.current && q.letters > 0);
       body = `
         <div class="req">
-          <div><div class="label">${isKiller ? "You are a killer" : "Hit your own number to get letters back"}</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="num-badge">${p.number}</span>${lettersHtml(p.letters)}</div></div>
+          <div><div class="label">${isKiller ? "You are a killer. Get killing." : "You need more letters first"}</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="num-badge">${p.number}</span>${lettersHtml(p.letters)}</div></div>
           <div class="darts-left" aria-label="Darts left">${[0,1,2].map(i => `<i class="${i < k.darts ? "used" : ""}"></i>`).join("")}</div>
         </div>
         <div class="targets-k">
           <div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">${p.letters >= 6 ? "already full" : "single +1, double +2, treble +3"}</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>
-          ${others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${isKiller ? `${q.letters} letter${q.letters === 1 ? "" : "s"} left` : "no effect, you're not a killer"}</div></div>
-            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")}
+          ${isKiller ? others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${q.letters} letter${q.letters === 1 ? "" : "s"} left</div></div>
+            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")
+          : `<p class="hint" style="text-align:left;margin:4px 0 0">Get all six letters back and the other players' numbers appear here.</p>`}
         </div>
         <div class="submit-row" style="grid-template-columns:1fr 1fr"><button class="btn red" id="kMiss" type="button" ${p.bot ? "disabled" : ""}>Miss<small>nothing hit</small></button><button class="btn quiet" id="kEnd" type="button" ${p.bot ? "disabled" : ""}>End turn<small>${3 - k.darts} dart${3 - k.darts === 1 ? "" : "s"} left</small></button></div>
         <p class="hint">Tap the number you hit, then S, D or T. Keyboard: a name's first letter isn't needed, just use the buttons. Voice: "Sue double", "own treble", "miss".</p>`;
