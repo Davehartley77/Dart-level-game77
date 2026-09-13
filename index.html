@@ -798,11 +798,11 @@
     const u = new SpeechSynthesisUtterance(line);
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
     u.rate = (item && item.rate) || 0.98; u.pitch = (item && item.pitch) || 0.9; u.volume = 1;
-    u.onstart = () => { started = true; speakingNow = true; if (rec) { try { rec.abort(); } catch (e2) { /* ignore */ } } voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
+    u.onstart = () => { started = true; speakingNow = true; voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
     const done = () => {
       speakingNow = false; lastSpeechEnd = Date.now();
       (line.match(/\d+/g) || []).map(Number).filter(n => n > 25).forEach(n => spokenNums.push({ n, at: lastSpeechEnd }));
-      if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
+      if (wantListening && !rec && !micNeedsTap) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
     };
     u.onend = () => { done(); voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`); };
     u.onerror = e => {
@@ -875,7 +875,7 @@
   // ---------- hands-free voice control ----------
   // With voice control on, the mic listens throughout play. Say a score and it is entered at once;
   // say "hit", "miss" or "bull"; "next", "undo", "bust"; and "one", "two" or "three" for darts on a checkout.
-  let rec = null, wantListening = false, speakingNow = false, lastSpeechEnd = 0, restartTimer = null, heardText = "", spokenNums = [];
+  let rec = null, wantListening = false, speakingNow = false, lastSpeechEnd = 0, restartTimer = null, heardText = "", spokenNums = [], micNeedsTap = false, micEverWorked = false;
   function callerJustSaid(n) { const now = Date.now(); spokenNums = spokenNums.filter(x => now - x.at < 2500); return (now - lastSpeechEnd < 2500) && spokenNums.some(x => x.n === n); }
   function voiceState(text) {
     heardText = text || "";
@@ -886,13 +886,11 @@
     if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } rec = null; }
     let r;
     try { r = new SR(); } catch (e) { voiceState("Voice control isn't available in this browser."); return; }
-    if (speakingNow) return; // the caller is talking; done() restarts us afterwards
-    // The mic stays open and shows what it is hearing as you speak. A session only ever starts after the
-    // caller has finished, and is cut the moment the caller starts, so it never contains the caller's voice.
+    // The mic stays open the whole time (phones only let it start from a tap, so it must never be stopped
+    // for the caller). Anything heard while the caller is talking, or just after, is dropped.
     r.lang = "en-GB"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
-    const startedAt = Date.now();
     r.onresult = e => {
-      if (speakingNow || startedAt < lastSpeechEnd + 200 || Date.now() - lastSpeechEnd < 700) { voiceState("Ignored: that was the caller."); return; }
+      if (speakingNow || Date.now() - lastSpeechEnd < 900) { voiceState("Ignored: that was the caller."); return; }
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (!e.results[i].isFinal) { interim += e.results[i][0].transcript; continue; }
@@ -903,6 +901,7 @@
     };
     r.onerror = e => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        if (micEverWorked) { micNeedsTap = true; rec = null; render(); return; } // the phone wants a tap to start it again
         wantListening = false;
         const onClaude = /claudeusercontent|claude\.ai/i.test(location.hostname);
         set({ listenMode: false, msg: onClaude
@@ -913,14 +912,18 @@
       else if (e.error === "audio-capture") { wantListening = false; set({ listenMode: false, msg: "No microphone found." }); }
       else voiceState("Mic problem: " + e.error + ". Retrying…");
     };
-    r.onend = () => { rec = null; if (wantListening && state.screen === "play" && !speakingNow) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 150); } };
-    try { r.start(); rec = r; if (!heardText || /^Listening|^Ignored/.test(heardText)) voiceState("Listening…"); } catch (e) { voiceState("Couldn't start the microphone."); }
+    r.onend = () => { if (rec === r) rec = null; if (wantListening && state.screen === "play" && !micNeedsTap) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 150); } };
+    r.onstart = () => { micEverWorked = true; if (micNeedsTap) { micNeedsTap = false; render(); } };
+    try { r.start(); rec = r; if (!heardText || /^Listening|^Ignored|^Tap/.test(heardText)) voiceState("Listening…"); }
+    catch (e) { rec = null; micNeedsTap = true; voiceState("Tap the mic to listen again."); render(); }
   }
   function stopListening() {
     wantListening = false; clearTimeout(restartTimer);
     if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } rec = null; }
   }
   function setVoiceControl(on) {
+    if (on && state.listenMode && micNeedsTap) { micNeedsTap = false; wantListening = true; startListening(); render(); return; }
+    micNeedsTap = false;
     wantListening = !!on && !!SR;
     set({ listenMode: wantListening, msg: "" });
     if (wantListening) { audio(); startListening(); say(["voice-control-on"], { interrupt: true }); } else stopListening();
@@ -1070,7 +1073,7 @@
   }
   async function drainBank(v) {
     if (bankPlaying) return; bankPlaying = true;
-    speakingNow = true; if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } }
+    speakingNow = true;
     voiceStatus(`Playing the ${BANKS[v]} recordings…`);
     while (bankQueue.length) {
       const item = bankQueue.shift();
@@ -1082,7 +1085,7 @@
     }
     bankSrc = null; bankPlaying = false; speakingNow = false; lastSpeechEnd = Date.now(); spokenNums.forEach(x => { x.at = lastSpeechEnd; });
     voiceStatus(`Played the ${BANKS[v]} recordings.`);
-    if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
+    if (wantListening && !rec && !micNeedsTap) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
   }
   function callerBusy() {
     // a device voice that never reports starting (the Claude app window) is not counted as busy
@@ -1492,7 +1495,7 @@
   }
 
   function playMeta(chips) {
-    meta.innerHTML = chips + pageButtons() + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice on" : "🎤 Voice"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save</button><button class="btn-ghost" id="quitBtn" type="button">End</button>`;
+    meta.innerHTML = chips + pageButtons() + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing" ${state.listenMode && micNeedsTap ? 'style="border-color:var(--red-2);color:var(--red-2)"' : ""}>${state.listenMode ? (micNeedsTap ? "🎤 Tap to listen" : "🎤 Voice on") : "🎤 Voice"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save</button><button class="btn-ghost" id="quitBtn" type="button">End</button>`;
   }
   function scoreboardBull() {
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
@@ -1528,8 +1531,8 @@
     el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
     el("#undoBtn").addEventListener("click", undo);
     app.querySelectorAll("[data-undo]").forEach(b => b.addEventListener("click", undo));
-    const vc = el("#voiceCtl"); if (vc) vc.addEventListener("click", () => setVoiceControl(!state.listenMode));
-    const vl = el("#voiceLine"); if (vl) { vl.textContent = state.listenMode ? (heardText || "Listening…") : ""; vl.classList.toggle("live", !!state.listenMode); }
+    const vc = el("#voiceCtl"); if (vc) vc.addEventListener("click", () => setVoiceControl(micNeedsTap ? true : !state.listenMode));
+    const vl = el("#voiceLine"); if (vl) { vl.textContent = state.listenMode ? (micNeedsTap ? "Tap the mic to listen again." : (heardText || "Listening…")) : ""; vl.classList.toggle("live", !!state.listenMode && !micNeedsTap); }
     // hands-free: move on by itself a few seconds after a result, unless someone undoes or taps first
     const cur = state.players[state.current];
     if ((state.listenMode || (cur && cur.bot)) && state.result && !state.result.checkout && state.winner == null) {
@@ -1655,7 +1658,7 @@
       set({ entry: e, msg: "" });
     }));
     app.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => { sfx.tap(); set({ entry: b.dataset.quick, msg: "" }); }));
-    const mic = el("#micBtn"); if (mic) mic.addEventListener("click", () => { audio(); listen(); });
+    const mic = el("#micBtn"); if (mic) mic.addEventListener("click", () => { audio(); setVoiceControl(micNeedsTap ? true : !state.listenMode); });
     el("#enterBtn").addEventListener("click", () => submitX01(parseInt(state.entry, 10)));
     el("#bustBtn").addEventListener("click", () => submitX01("bust"));
     app.querySelectorAll("[data-darts]").forEach(b => b.addEventListener("click", () => finishLeg(+b.dataset.darts)));
