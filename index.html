@@ -353,6 +353,120 @@
     return route.split(" ").map(t => t === "Bull" ? "Bull" : t === "25" ? "25" : t[0] === "T" ? "T" + t.slice(1) : t[0] === "D" ? "D" + t.slice(1) : t).join(" · ");
   }
 
+  // ---------- the Dart Bot ----------
+  // He throws one dart at a time. Each level sets how often a dart lands where it was aimed.
+  const BOT_LEVELS = 15;
+  function botSkill(level) {
+    const t = (Math.max(1, Math.min(BOT_LEVELS, level)) - 1) / (BOT_LEVELS - 1);
+    return {
+      treble: 0.03 + 0.40 * t, singleWhenTreble: 0.35 + 0.15 * t, trebleNeighbour: 0.05 - 0.03 * t,
+      double: 0.08 + 0.42 * t, insideWhenDouble: 0.30 + 0.15 * t,
+      single: 0.60 + 0.35 * t, trebleWhenSingle: 0.05,
+      bull: 0.05 + 0.32 * t, outerWhenBull: 0.20 + 0.25 * t,
+    };
+  }
+  function botAverage(level) {
+    const s = botSkill(level); const other = 1 - s.treble - s.singleWhenTreble - s.trebleNeighbour;
+    return Math.round(0.86 * 3 * (s.treble * 60 + s.singleWhenTreble * 20 + s.trebleNeighbour * 9 + other * 3)); // matches a simulated leg, including finishing
+  }
+  function botTitle(level) { return level <= 3 ? "Pub beginner" : level <= 6 ? "Pub regular" : level <= 9 ? "League player" : level <= 12 ? "County standard" : level <= 14 ? "Professional" : "World class"; }
+  const NEIGHBOURS = { 20: [1, 5], 19: [7, 3], 18: [1, 4], 17: [3, 2], 16: [7, 8], 15: [10, 2], 14: [9, 11], 13: [4, 6], 12: [9, 5], 11: [14, 8], 10: [15, 6], 9: [12, 14], 8: [16, 11], 7: [19, 16], 6: [10, 13], 5: [20, 12], 4: [18, 13], 3: [19, 17], 2: [15, 17], 1: [20, 18] };
+  function neighbour(n) { const ns = NEIGHBOURS[n] || [n]; return ns[Math.floor(Math.random() * ns.length)]; }
+  function throwDart(target, s) {
+    const r = Math.random();
+    if (target.kind === "T") {
+      if (r < s.treble) return { label: "T" + target.n, score: 3 * target.n };
+      if (r < s.treble + s.singleWhenTreble) return { label: String(target.n), score: target.n };
+      if (r < s.treble + s.singleWhenTreble + s.trebleNeighbour) { const n = neighbour(target.n); return { label: "T" + n, score: 3 * n }; }
+      const n = neighbour(target.n); return { label: String(n), score: n };
+    }
+    if (target.kind === "D") {
+      if (r < s.double) return { label: "D" + target.n, score: 2 * target.n, double: true };
+      if (r < s.double + s.insideWhenDouble) return { label: String(target.n), score: target.n };
+      if (r < s.double + s.insideWhenDouble + 0.25) { const n = neighbour(target.n); return { label: String(n), score: n }; }
+      return { label: "miss", score: 0 };
+    }
+    if (target.kind === "B") {
+      if (r < s.bull) return { label: "Bull", score: 50, double: true };
+      if (r < s.bull + s.outerWhenBull) return { label: "25", score: 25 };
+      const n = 1 + Math.floor(Math.random() * 20); return { label: String(n), score: n };
+    }
+    if (target.kind === "O") {
+      if (r < s.outerWhenBull + s.bull * 0.5) return { label: "25", score: 25 };
+      if (r < s.outerWhenBull + s.bull) return { label: "Bull", score: 50, double: true };
+      const n = 1 + Math.floor(Math.random() * 20); return { label: String(n), score: n };
+    }
+    if (r < s.single) return { label: String(target.n), score: target.n };
+    if (r < s.single + s.trebleWhenSingle) return { label: "T" + target.n, score: 3 * target.n };
+    const n = neighbour(target.n); return { label: String(n), score: n };
+  }
+  function parseTarget(tok) { if (tok === "Bull") return { kind: "B", n: 50 }; if (tok === "25") return { kind: "O", n: 25 }; if (tok[0] === "T") return { kind: "T", n: +tok.slice(1) }; if (tok[0] === "D") return { kind: "D", n: +tok.slice(1) }; return { kind: "S", n: +tok }; }
+  function planDart(rem, dartsLeft) {
+    const route = CHECKOUTS[rem];
+    if (route && route.split(" ").length <= dartsLeft) return parseTarget(route.split(" ")[0]);
+    if (rem > 170) return { kind: "T", n: 20 };
+    for (const L of [32, 40, 16, 8, 24, 36, 20, 4, 2, 50]) {
+      const need = rem - L;
+      if (need >= 1 && need <= 20) return { kind: "S", n: need };
+      if (need >= 21 && need <= 60 && need % 3 === 0) return { kind: "T", n: need / 3 };
+    }
+    if (route) return parseTarget(route.split(" ")[0]);
+    return { kind: "T", n: 20 };
+  }
+  function simulateVisit(rem, level) {
+    const s = botSkill(level); const darts = []; let r = rem;
+    for (let i = 0; i < 3; i++) {
+      const d = throwDart(planDart(r, 3 - i), s); darts.push(d.label); const nr = r - d.score;
+      if (nr < 0 || nr === 1 || (nr === 0 && !d.double)) return { bust: true, scored: 0, darts, dartsUsed: i + 1 };
+      r = nr; if (r === 0) return { checkout: true, scored: rem, darts, dartsUsed: i + 1 };
+    }
+    return { scored: rem - r, darts, dartsUsed: 3 };
+  }
+  function simulateBullTurn(target, level) {
+    const s = botSkill(level); const darts = []; let r = target;
+    for (let i = 0; i < 3; i++) {
+      const dartsLeft = 3 - i, route = CHECKOUTS[r];
+      if (!(route && route.split(" ").length <= dartsLeft)) {
+        // checkout impossible with the darts left: throw for the bull to be saved
+        const b = throwDart({ kind: "B" }, s); darts.push(b.label + " (for the bull)");
+        return { outcome: b.label === "Bull" ? "bull" : "miss", darts };
+      }
+      const d = throwDart(planDart(r, dartsLeft), s); darts.push(d.label); const nr = r - d.score;
+      if (nr === 0 && d.double) return { outcome: "hit", darts };
+      if (nr < 2) {
+        if (i < 2) { const b = throwDart({ kind: "B" }, s); darts.push(b.label + " (for the bull)"); return { outcome: b.label === "Bull" ? "bull" : "miss", darts }; }
+        return { outcome: "miss", darts };
+      }
+      r = nr;
+    }
+    return { outcome: "miss", darts };
+  }
+  let botToken = 0;
+  function scheduleBot() {
+    const p = state.players[state.current];
+    if (!p || !p.bot || state.result || state.winner != null || state.dialog || state.screen !== "play") return;
+    const token = ++botToken;
+    setTimeout(() => {
+      if (token !== botToken) return;
+      const q = state.players[state.current];
+      if (!q || !q.bot || state.result || state.winner != null || state.dialog || state.screen !== "play") return;
+      botTurn(q);
+    }, 1600);
+  }
+  function botTurn(p) {
+    if (state.mode === "bull") {
+      const sim = simulateBullTurn(p.target, p.botLevel); state.botDarts = sim.darts.join(" · "); submitBull(sim.outcome);
+    } else {
+      const sim = simulateVisit(p.remaining, p.botLevel); state.botDarts = sim.darts.join(" · ");
+      if (sim.bust) submitX01("bust");
+      else { submitX01(sim.scored); if (sim.checkout) setTimeout(() => { if (state.result && state.result.checkout && state.players[state.current] === p) finishLeg(sim.dartsUsed); }, 2600); }
+    }
+  }
+  function botDartsLine() {
+    const p = state.players[state.current];
+    return p && p.bot && state.botDarts ? `<div class="detail" style="font-size:17px;margin-top:-6px">🤖 ${esc(state.botDarts)}</div>` : "";
+  }
+
   // ---------- state ----------
   const KEY = "saved-by-the-bull:v3";
   const SAVED_KEY = "saved-by-the-bull:saved";
@@ -362,7 +476,7 @@
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [] };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "" };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -701,8 +815,15 @@
             ${ICONS.map(i => `<button type="button" class="icon-btn" data-icon="${i}" aria-pressed="${i === d.icon}">${i}</button>`).join("")}
           </div>
           ${state.players.length
-            ? `<ul class="roster">${state.players.map((p, i) => `<li><span class="dot" style="background:${p.color}"></span><span>${p.icon}</span><span class="name">${esc(p.name)}</span><button type="button" class="remove" data-remove="${i}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("")}</ul>`
+            ? `<ul class="roster">${state.players.map((p, i) => `<li><span class="dot" style="background:${p.color}"></span><span>${p.icon}</span><span class="name">${esc(p.name)}${p.bot ? ` <span class="lvl" style="font-family:var(--num);font-size:13px;color:var(--muted)">level ${p.botLevel} · ${botTitle(p.botLevel)}</span>` : ""}</span><button type="button" class="remove" data-remove="${i}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("")}</ul>`
             : `<p class="empty">No players yet. Add at least one to start.</p>`}
+          <div class="sub-h" style="margin-top:18px">Or take on the Dart Bot</div>
+          <input type="range" id="botLvl" min="1" max="${BOT_LEVELS}" value="${state.botLevel}" style="width:100%" aria-label="Dart Bot level">
+          <div class="field" style="align-items:center;margin-top:8px">
+            <span id="botLvlText" style="flex:1;font-family:var(--num);font-weight:700;font-size:17px">Level ${state.botLevel} · ${botTitle(state.botLevel)} · averages about ${botAverage(state.botLevel)}</span>
+            <button class="btn quiet" id="addBot" type="button" style="padding:10px 16px;font-size:16px">${state.players.some(p => p.bot) ? "Set bot level" : "Add Dart Bot"}</button>
+          </div>
+          <p class="rules-note">Level 1 is easy to beat, level ${BOT_LEVELS} is world class. He throws real darts: his scores and checkouts come from how often each dart lands where he aimed.</p>
         </div>
 
         ${bull ? `<div class="card">
@@ -788,6 +909,14 @@
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
     app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
+    const bl = el("#botLvl");
+    bl.addEventListener("input", () => { state.botLevel = +bl.value; save(); el("#botLvlText").textContent = `Level ${state.botLevel} · ${botTitle(state.botLevel)} · averages about ${botAverage(state.botLevel)}`; });
+    el("#addBot").addEventListener("click", () => {
+      d.name = nameIn.value;
+      state.players = state.players.filter(p => !p.bot);
+      state.players.push({ name: "Dart Bot", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🤖", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
+      set({});
+    });
     const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
     const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
     const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
@@ -849,7 +978,7 @@
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
       <div class="pcard${i === state.current ? " active" : ""}">
         ${avatar(q)}
-        <div><div class="pname">${esc(q.name)}</div><div class="sub">${pips(q.level)}<span class="lvl">Lvl ${q.level}</span><span class="tgt">next <b>${q.target}</b></span></div></div>
+        <div><div class="pname">${esc(q.name)}${q.bot ? ` <span class="lvl">bot ${q.botLevel}</span>` : ""}</div><div class="sub">${pips(q.level)}<span class="lvl">Lvl ${q.level}</span><span class="tgt">next <b>${q.target}</b></span></div></div>
         <div class="score"><div class="n">${q.score}</div><div class="bar"><i style="width:${Math.min(100, q.score / state.targetScore * 100)}%"></i></div></div>
         ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
       </div>`).join("")}</div>`;
@@ -858,7 +987,7 @@
     return `<div class="players">${state.players.map((q, i) => `
       <div class="pcard${i === state.current ? " active" : ""}">
         ${avatar(q)}
-        <div><div class="pname">${esc(q.name)}</div><div class="sub">${state.x01.legs > 1 ? legDots(q.legs, state.x01.legs) : ""}<span class="tgt">avg <b>${avg(q)}</b></span><span class="tgt">last <b>${q.last == null ? "–" : q.last}</b></span></div></div>
+        <div><div class="pname">${esc(q.name)}${q.bot ? ` <span class="lvl">bot ${q.botLevel}</span>` : ""}</div><div class="sub">${state.x01.legs > 1 ? legDots(q.legs, state.x01.legs) : ""}<span class="tgt">avg <b>${avg(q)}</b></span><span class="tgt">last <b>${q.last == null ? "–" : q.last}</b></span></div></div>
         <div class="score"><div class="n">${q.remaining}</div><div class="bar"><i style="width:${Math.min(100, (state.x01.start - q.remaining) / state.x01.start * 100)}%"></i></div></div>
         ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
       </div>`).join("")}</div>`;
@@ -881,10 +1010,12 @@
     const vc = el("#voiceCtl"); if (vc) vc.addEventListener("click", () => setVoiceControl(!state.listenMode));
     const vl = el("#voiceLine"); if (vl) vl.textContent = state.listenMode ? (heardText || "Listening…") : "";
     // hands-free: move on by itself a few seconds after a result, unless someone undoes or taps first
-    if (state.listenMode && state.result && !state.result.checkout && state.winner == null) {
+    const cur = state.players[state.current];
+    if ((state.listenMode || (cur && cur.bot)) && state.result && !state.result.checkout && state.winner == null) {
       const token = state.result;
-      setTimeout(() => { if (state.result === token && state.screen === "play" && state.listenMode && !state.dialog) nextTurn(); }, 4500);
+      setTimeout(() => { if (state.result === token && state.screen === "play" && !state.dialog) nextTurn(); }, cur && cur.bot ? 3800 : 4500);
     }
+    scheduleBot();
     app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
     const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
     const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
@@ -942,6 +1073,7 @@
     return `<div class="result ${r.hit ? "hit" : r.saved ? "saved" : "miss"}" role="status"><div>
         <div class="big">${r.hit ? "HIT!" : r.saved ? "SAVED BY THE BULL!" : "MISSED"}</div>
         <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : r.saved ? `No points lost · stays on level ${r.level} · ${state.bullKeep ? `${r.target} again next turn` : "new checkout next turn"}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
+        ${botDartsLine()}
         <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
         ${undoLink()}
@@ -1013,6 +1145,7 @@
     if (r.checkout) {
       return `<div class="result hit" role="status"><div>
         <div class="big">GAME SHOT!</div>
+        ${botDartsLine()}
         <div class="detail">${esc(r.player)} checks out <b>${r.scored}</b>. How many darts?</div>
         <div class="darts">${[1,2,3].map(n => `<button type="button" data-darts="${n}">${n}</button>`).join("")}</div>
         ${undoLink()}
@@ -1020,6 +1153,7 @@
     }
     return `<div class="result ${r.bust ? "miss" : r.scored === 180 ? "mega" : r.scored >= 100 ? "hit" : "neutral"}" role="status"><div>
         <div class="big">${r.bust ? "BUST" : r.scored === 180 ? "180!" : r.scored >= 140 ? r.scored + "!" : r.scored}</div>
+        ${botDartsLine()}
         <div class="detail">${r.bust ? `Score stays on <b>${r.remaining}</b>` : `${esc(r.player)} requires <b>${r.remaining}</b>`}${r.suggest ? ` · ${esc(r.suggest)}` : ""}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
         ${undoLink()}
@@ -1166,7 +1300,7 @@
   function nextTurn() {
     if (state.winner != null) return;
     const next = (state.current + 1) % state.players.length;
-    set({ current: next, result: null, entry: "", msg: "", round: next === 0 ? state.round + 1 : state.round });
+    set({ current: next, result: null, entry: "", msg: "", botDarts: "", round: next === 0 ? state.round + 1 : state.round });
     announceTurn();
   }
   function leaveGame(index) {
