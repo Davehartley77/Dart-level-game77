@@ -24,12 +24,12 @@ First player to 50 points wins.
 
 ## A turn
 1. The screen shows the player's current level and their target number.
-2. The player throws, then enters the number they actually scored.
-3. If the number entered equals the target, it is a HIT:
+2. The player throws three darts, then presses HIT or MISSED.
+3. On a HIT:
    - add the level's points to the player's score
    - move up one level (Level 5 players stay on Level 5)
    - a new target is drawn for the new level
-4. Otherwise it is a MISS:
+4. On a MISS:
    - take the level's penalty off the score, but a score never goes below 0
    - drop back to the level shown in the table (Level 1 players stay on Level 1)
    - a new target is drawn for that level

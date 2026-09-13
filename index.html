@@ -127,19 +127,32 @@
   .target-box .worth b { color: var(--green); }
   .target-box .worth i { color: var(--red); font-style: normal; }
 
-  .entry { margin-top: 18px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: stretch; }
-  @media (max-width: 520px) { .entry { grid-template-columns: 1fr; } }
-  .scored { background: var(--ink); color: var(--bone); border-radius: 12px; padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; }
-  .scored .label { font-family: var(--num); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-  .scored .value { font-family: var(--num); font-size: 56px; font-weight: 800; line-height: 1; min-height: 56px; font-variant-numeric: tabular-nums; }
-  .scored .value.empty { color: #4d5a50; }
-  .pad { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; }
-  .pad button { height: 52px; border-radius: 10px; border: 2px solid #b9ad8f; background: #fbf6e8; color: var(--ink); font-family: var(--num); font-weight: 800; font-size: 26px; }
-  .pad button:hover { background: #fff; border-color: var(--brass); }
-  .pad button.wide { grid-column: span 2; }
-  .pad button.del { font-size: 18px; background: #e9dfc4; }
-  .submit-row { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .submit-row .btn { flex: 1; }
+  .submit-row { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px) { .submit-row { grid-template-columns: 1fr; } }
+  .submit-row .btn { padding: 22px 16px; font-size: 28px; }
+  .submit-row .btn small { display: block; font-size: 13px; letter-spacing: .12em; opacity: .85; margin-top: 4px; }
+  .hint { text-align: center; color: #6b5a2c; font-size: 14px; margin: 12px 0 0; }
+
+  /* in-page dialog (the browser's own confirm box is blocked inside the artifact) */
+  .dialog { position: fixed; inset: 0; background: rgba(8,15,11,.8); display: grid; place-items: center; padding: 20px; z-index: 30; }
+  .dialog .inner { background: var(--bone); color: var(--ink); border: 4px solid var(--brass); border-radius: 16px; padding: 26px; max-width: 440px; width: 100%; box-shadow: var(--shadow); animation: pop .2s ease-out; }
+  .dialog h3 { font-family: var(--display); font-size: 24px; margin: 0 0 8px; line-height: 1.1; }
+  .dialog p { margin: 0 0 20px; color: #4a3f22; }
+  .dialog .actions { display: grid; gap: 10px; }
+  .btn.quiet { background: #d9cdae; color: var(--ink); box-shadow: 0 4px 0 #a8996f, var(--shadow); }
+  .btn.quiet:hover { background: #e6dcc2; }
+
+  /* saved games */
+  .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .saved li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 12px 14px; background: var(--felt); border-radius: 10px; border: 1px solid var(--line); }
+  .saved .title { font-weight: 700; font-size: 16px; }
+  .saved .when { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .saved .btn { padding: 10px 14px; font-size: 16px; }
+  .saved .remove { background: none; border: none; color: var(--muted); font-size: 18px; padding: 2px 6px; }
+  .saved .remove:hover { color: var(--red-2); }
+
+  .pcard .leave { grid-column: 1 / -1; justify-self: end; background: none; border: none; color: var(--muted); font-family: var(--num); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding: 2px 0 0; }
+  .pcard .leave:hover { color: var(--red-2); }
 
   /* result overlay inside turn card */
   .result { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; background: var(--green); color: var(--bone); animation: pop .25s ease-out; }
@@ -236,19 +249,42 @@
   }
 
   // ---------- state ----------
-  const KEY = "saved-by-the-bull:v1";
-  let state = load() || freshSetup();
+  const KEY = "saved-by-the-bull:v2";
+  const SAVED_KEY = "saved-by-the-bull:saved";
+  let state = load(KEY) || freshSetup();
+  let savedGames = load(SAVED_KEY) || [];
 
   function freshSetup() {
-    return { screen: "setup", targetScore: 50, customTarget: "", draft: { name: "", color: COLORS[0], icon: ICONS[0] }, players: [], current: 0, entry: "", rounds: [], result: null, winner: null, round: 1 };
+    return { screen: "setup", targetScore: 50, customTarget: "", draft: { name: "", color: COLORS[0], icon: ICONS[0] }, players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null };
   }
-  function load() {
-    try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  function load(key) {
+    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable; the game still runs */ }
+    try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(SAVED_KEY, JSON.stringify(savedGames)); } catch (e) { /* storage unavailable; the game still runs */ }
   }
   function set(patch) { Object.assign(state, patch); save(); render(); }
+
+  // ---------- saved games ----------
+  function saveGame() {
+    const names = state.players.map(p => p.name).join(", ");
+    savedGames.unshift({ id: Date.now(), when: new Date().toISOString(), title: names, targetScore: state.targetScore, round: state.round,
+      game: { players: state.players, current: state.current, rounds: state.rounds, round: state.round, targetScore: state.targetScore } });
+    savedGames = savedGames.slice(0, 12);
+    const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget;
+    state = fresh; save(); render();
+  }
+  function resumeGame(id) {
+    const s = savedGames.find(g => g.id === id); if (!s) return;
+    savedGames = savedGames.filter(g => g.id !== id);
+    const g = JSON.parse(JSON.stringify(s.game));
+    state = { ...freshSetup(), screen: "play", players: g.players, current: g.current, rounds: g.rounds, round: g.round, targetScore: g.targetScore, customTarget: TARGET_OPTIONS.includes(g.targetScore) ? "" : String(g.targetScore) };
+    save(); render();
+  }
+  function whenText(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
 
   // ---------- sounds (generated, nothing to host) ----------
   let ctx = null;
@@ -356,10 +392,19 @@
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
         </div>
 
+        ${savedGames.length ? `<div class="card" style="grid-column: 1 / -1">
+          <h2>Saved games</h2>
+          <ul class="saved">${savedGames.map(g => `<li>
+            <div><div class="title">${esc(g.title)}</div><div class="when">Round ${g.round} · first to ${g.targetScore} · saved ${whenText(g.when)}</div></div>
+            <button type="button" class="btn brass" data-resume="${g.id}">Resume</button>
+            <button type="button" class="remove" data-delete="${g.id}" aria-label="Delete saved game">✕</button>
+          </li>`).join("")}</ul>
+        </div>` : ""}
+
         <div class="card" style="grid-column: 1 / -1">
           <h2>How the levels work</h2>
           ${rulesTable()}
-          <p class="rules-note">Each turn you get a random checkout number for your level. Enter what you actually scored with your three darts. Match it exactly to go up a level and bank the points; miss and you lose the penalty and drop back. Scores never go below zero.</p>
+          <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>
         </div>
 
         <div class="start-row">
@@ -387,16 +432,41 @@
       const v = parseInt(customIn.value, 10);
       if (v >= 5) { state.targetScore = v; state.customTarget = customIn.value; save(); meta.innerHTML = `<span class="chip">First to <strong>${v}</strong></span>`; app.querySelectorAll(".target-opt").forEach(b => b.setAttribute("aria-pressed", "false")); }
     });
+    app.querySelectorAll("[data-resume]").forEach(b => b.addEventListener("click", () => { audio(); resumeGame(+b.dataset.resume); }));
+    app.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "deleteSaved", id: +b.dataset.delete } })));
     el("#startBtn").addEventListener("click", () => {
       audio();
-      set({ screen: "play", current: 0, entry: "", rounds: [], result: null, winner: null, round: 1 });
+      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
+    });
+    if (state.dialog) { app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
+  }
+
+  function renderDialog(d) {
+    let title, text, ok, okClass = "red";
+    if (d.type === "end") { title = "End this game?"; text = "Scores will be lost. Use Save and close instead if you want to pick it up later."; ok = "End game"; }
+    else if (d.type === "leave") { const p = state.players[d.index]; title = `${p ? esc(p.name) : "Player"} leaving?`; text = "They drop out of the game. Everyone else carries on and their throws stay in the history."; ok = "Yes, leave the game"; }
+    else if (d.type === "deleteSaved") { const s = savedGames.find(g => g.id === d.id); title = "Delete saved game?"; text = s ? `${esc(s.title)}, round ${s.round}. This can't be undone.` : ""; ok = "Delete"; }
+    else if (d.type === "save") { title = "Save and close?"; text = "The game is kept on this device under Saved games on the start screen. Resume it any time."; ok = "Save and close"; okClass = ""; }
+    return `<div class="dialog" role="dialog" aria-label="${title}"><div class="inner">
+      <h3>${title}</h3><p>${text}</p>
+      <div class="actions"><button class="btn ${okClass}" id="dlgOk" type="button">${ok}</button><button class="btn quiet" id="dlgCancel" type="button">Go back</button></div>
+    </div></div>`;
+  }
+  function wireDialog() {
+    const d = state.dialog;
+    el("#dlgCancel").addEventListener("click", () => set({ dialog: null }));
+    el("#dlgOk").addEventListener("click", () => {
+      if (d.type === "end") resetToSetup();
+      else if (d.type === "leave") leaveGame(d.index);
+      else if (d.type === "deleteSaved") { savedGames = savedGames.filter(g => g.id !== d.id); set({ dialog: null }); }
+      else if (d.type === "save") saveGame();
     });
   }
 
   function renderPlay() {
     const p = state.players[state.current];
     const L = LEVELS[p.level - 1];
-    meta.innerHTML = `<span class="chip">First to <strong>${state.targetScore}</strong></span><span class="chip">Round <strong>${state.round}</strong></span><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+    meta.innerHTML = `<span class="chip">First to <strong>${state.targetScore}</strong></span><span class="chip">Round <strong>${state.round}</strong></span><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
 
     app.innerHTML = `
       <section class="play">
@@ -417,21 +487,11 @@
                 <div class="worth">Hit <b>+${L.points}</b> · Miss <i>${L.penalty ? "−" + L.penalty : "0"}</i>${L.failTo < L.level ? `, back to level ${L.failTo}` : ""}</div>
               </div>
             </div>
-            <div class="entry">
-              <div class="scored">
-                <div class="label">You scored</div>
-                <div class="value ${state.entry ? "" : "empty"}" id="entryVal">${state.entry || "–"}</div>
-              </div>
-              <div class="pad" aria-label="Number pad">
-                ${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" data-key="${n}">${n}</button>`).join("")}
-                <button type="button" data-key="0" class="wide">0</button>
-                <button type="button" data-key="del" class="del" aria-label="Delete">⌫</button>
-              </div>
-            </div>
             <div class="submit-row">
-              <button class="btn" id="hitBtn" type="button" ${state.entry === "" ? "disabled" : ""}>Enter score</button>
-              <button class="btn red" id="missBtn" type="button">Missed it</button>
+              <button class="btn" id="hitBtn" type="button">Hit<small>+${L.points} · up a level</small></button>
+              <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
+            <p class="hint">Throw three darts, then press one. Keyboard: H for hit, M for missed.</p>
             ${state.result ? renderResult(state.result) : ""}
           </div>
 
@@ -452,32 +512,31 @@
                   <div class="sub">${pips(q.level)}<span class="lvl">Lvl ${q.level}</span><span class="tgt">next <b>${q.target}</b></span></div>
                 </div>
                 <div class="score"><div class="n">${q.score}</div><div class="bar"><i style="width:${Math.min(100, q.score / state.targetScore * 100)}%"></i></div></div>
+                ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
               </div>`).join("")}
           </div>
           <h2>This game</h2>
           ${state.rounds.length
-            ? `<ul class="history">${[...state.rounds].reverse().map(r => `<li class="${r.hit ? "hit" : "miss"}"><span class="who"><b>${esc(r.player)}</b> · needed ${r.target}, scored ${r.scored}</span><span class="r ${r.hit ? "hit" : "miss"}">${r.hit ? "+" + r.delta : (r.delta ? "−" + r.delta : "0")} → L${r.level}</span></li>`).join("")}</ul>`
+            ? `<ul class="history">${[...state.rounds].reverse().map(r => r.left
+                ? `<li class="miss"><span class="who"><b>${esc(r.player)}</b> left the game</span><span class="r">round ${r.round}</span></li>`
+                : `<li class="${r.hit ? "hit" : "miss"}"><span class="who"><b>${esc(r.player)}</b> · ${r.hit ? "hit" : "missed"} ${r.target} on level ${r.fromLevel}</span><span class="r ${r.hit ? "hit" : "miss"}">${r.hit ? "+" + r.delta : (r.delta ? "−" + r.delta : "0")} → L${r.level}</span></li>`).join("")}</ul>`
             : `<p class="empty">No throws yet. ${esc(p.name)} is up first.</p>`}
         </aside>
       </section>
-      ${state.winner != null ? renderWinner() : ""}`;
+      ${state.winner != null ? renderWinner() : ""}
+      ${state.dialog ? renderDialog(state.dialog) : ""}`;
 
     drawBoard(el("#board"));
 
-    app.querySelectorAll("[data-key]").forEach(b => b.addEventListener("click", () => {
-      sfx.tap();
-      const k = b.dataset.key;
-      let e = state.entry;
-      if (k === "del") e = e.slice(0, -1);
-      else if (e.length < 3) e = (e === "0" ? "" : e) + k;
-      set({ entry: e });
-    }));
-    el("#hitBtn").addEventListener("click", () => submit(parseInt(state.entry, 10)));
-    el("#missBtn").addEventListener("click", () => submit(null));
-    el("#quitBtn").addEventListener("click", () => { if (confirm("End this game and go back to setup? Scores will be lost.")) resetToSetup(); });
+    el("#hitBtn").addEventListener("click", () => submit(true));
+    el("#missBtn").addEventListener("click", () => submit(false));
+    el("#saveBtn").addEventListener("click", () => set({ dialog: { type: "save" } }));
+    el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
+    app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
     const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
     const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
     const changeBtn = el("#changeBtn"); if (changeBtn) changeBtn.addEventListener("click", resetToSetup);
+    if (state.dialog) wireDialog();
   }
 
   function renderResult(r) {
@@ -510,11 +569,10 @@
   }
 
   // ---------- game flow ----------
-  function submit(scored) {
-    if (state.result) return;
+  function submit(hit) {
+    if (state.result || state.dialog || state.winner != null) return;
     const p = state.players[state.current];
     const L = LEVELS[p.level - 1];
-    const hit = scored === p.target;
     const before = p.level;
     let delta;
     if (hit) {
@@ -528,32 +586,44 @@
     }
     const usedTarget = p.target;
     p.target = randomTarget(p.level);
-    const result = { player: p.name, hit, delta, level: p.level, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, scored: scored == null ? "miss" : scored };
+    const result = { player: p.name, hit, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
-    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({ entry: "" }); setTimeout(sfx.win, 150); return; }
-    set({ result, entry: "" });
+    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); return; }
+    set({ result });
   }
   function nextTurn() {
     let next = (state.current + 1) % state.players.length;
-    set({ current: next, result: null, entry: "", round: next === 0 ? state.round + 1 : state.round });
+    set({ current: next, result: null, round: next === 0 ? state.round + 1 : state.round });
+  }
+  function leaveGame(index) {
+    const p = state.players[index]; if (!p) { set({ dialog: null }); return; }
+    state.rounds.push({ player: p.name, left: true, round: state.round });
+    state.players.splice(index, 1);
+    if (!state.players.length) { resetToSetup(); return; }
+    let current = state.current;
+    if (index < current) current--;
+    if (current >= state.players.length) current = 0;
+    // if the leaver was mid-turn, their turn is over; the next player is up
+    set({ current, result: index === state.current ? null : state.result, dialog: null });
   }
   function playAgain() {
     state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.hits = 0; p.misses = 0; });
-    set({ current: 0, entry: "", rounds: [], result: null, winner: null, round: 1 });
+    set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
   }
   function resetToSetup() {
     state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.hits = 0; p.misses = 0; });
-    set({ screen: "setup", current: 0, entry: "", rounds: [], result: null, winner: null, round: 1 });
+    set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
   }
 
-  // keyboard entry during play
+  // keyboard shortcuts during play
   document.addEventListener("keydown", e => {
     if (state.screen !== "play" || state.winner != null) return;
     if (e.target && (e.target.tagName === "INPUT")) return;
-    if (state.result) { if (e.key === "Enter") { e.preventDefault(); nextTurn(); } return; }
-    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); let s = state.entry; if (s.length < 3) set({ entry: (s === "0" ? "" : s) + e.key }); }
-    else if (e.key === "Backspace") { e.preventDefault(); set({ entry: state.entry.slice(0, -1) }); }
-    else if (e.key === "Enter" && state.entry !== "") { e.preventDefault(); submit(parseInt(state.entry, 10)); }
+    if (state.dialog) { if (e.key === "Escape") set({ dialog: null }); return; }
+    if (state.result) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nextTurn(); } return; }
+    const k = e.key.toLowerCase();
+    if (k === "h") { e.preventDefault(); submit(true); }
+    else if (k === "m") { e.preventDefault(); submit(false); }
   });
 
   render();
