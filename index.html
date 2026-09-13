@@ -651,9 +651,8 @@
       speak(`${p.name}. Checkout ${p.target}.${route}`, { queue: true });
     } else {
       const s = suggestion(p.remaining);
-      let line = `${p.name}, you require ${p.remaining}.`;
-      if (s && s.finish) line += " " + routeWords(s.route) + ".";
-      else if (s && !state.listenMode && /^Score/.test(s.route)) line += " " + s.route + ".";
+      let line = `${p.name}.`;
+      if (p.remaining <= 170) { line = `${p.name}, you require ${p.remaining}.`; if (s && s.finish) line += " " + routeWords(s.route) + "."; }
       speak(line, { queue: true });
     }
   }
@@ -1276,9 +1275,7 @@
   // The line the caller says after a scoring visit in 501
   function callVisit(scored, p, s) {
     // With voice control on the caller only echoes the score it heard; the screen shows the rest.
-    const tail = s && s.finish
-      ? ` ${p.remaining} left: ${routeWords(s.route)}.`
-      : (state.listenMode ? "" : ` ${p.name}, you require ${p.remaining}.`);
+    const tail = ""; // the requirement is called at the start of the player's next turn, not after the score
     if (scored === 180) { big180(p.name); speak(tail, { queue: true }); return; }
     if (scored >= 171) { sfx.crowd(1.6); speak(`${scored}! Wonderful darts!`, { pitch: 1.1, rate: 0.9 }); speak(tail, { queue: true }); return; }
     if (scored >= 140) { sfx.crowd(1.4); speak(`${numberWord(scored)}!`, { pitch: 1.08, rate: 0.9 }); speak(tail, { queue: true }); return; }
@@ -1343,7 +1340,7 @@
     const s = suggestion(p.remaining);
     const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
     state.rounds.push(r);
-    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (state.listenMode) { if (!pl) speak("Bust."); } else if (!pl) speak(`No score! Bust. ${p.name} still requires ${p.remaining}.`); else speak(`${p.name} still requires ${p.remaining}.`, { queue: true }); }); }
+    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) speak(state.listenMode ? "Bust." : "No score! Bust."); }); }
     else { if (scored >= 100) sfx.hit(); else sfx.tap(); callVisit(scored, p, s); }
     set({ result: r, entry: "", msg: "" });
   }
