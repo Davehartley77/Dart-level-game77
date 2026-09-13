@@ -200,6 +200,17 @@
   .result .darts button { width: 64px; height: 64px; border-radius: 12px; border: 3px solid rgba(255,255,255,.5); background: transparent; color: var(--bone); font-family: var(--num); font-size: 30px; font-weight: 800; }
   .result .darts button:hover { background: rgba(255,255,255,.15); }
   @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+  .result.mega { background: radial-gradient(circle at 50% 40%, #ffe27a, var(--brass) 55%, #d9901e); color: var(--ink); }
+  .result.mega .big { font-size: clamp(56px, 12vw, 120px); text-shadow: 0 6px 0 rgba(0,0,0,.2); animation: thump .5s ease-out 3; }
+  .result.mega .detail { color: #3a2a06; }
+  .result.mega .btn { background: var(--ink); color: var(--bone); }
+  @keyframes thump { 0% { transform: scale(.6); } 50% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  .result .undo { display: block; margin: 12px auto 0; background: none; border: none; color: inherit; opacity: .8; font-family: var(--num); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; text-decoration: underline; }
+  .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
+  .confetti i { position: absolute; top: -12px; width: 10px; height: 16px; border-radius: 2px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .9; } }
+  .flash { animation: flash .35s ease-out 2; }
+  @keyframes flash { 0%, 100% { filter: none; } 50% { filter: brightness(1.6); } }
 
   /* players */
   .players { display: grid; gap: 10px; }
@@ -350,7 +361,7 @@
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listening: false, legStarter: 0, leg: 1 };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listening: false, legStarter: 0, leg: 1, undo: [] };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -401,7 +412,34 @@
     miss() { tone(220, 0, .18, "sawtooth", .14); tone(160, .18, .32, "sawtooth", .14); },
     win()  { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * .13, .16, "square", .16)); tone(1319, .8, .6, "square", .18); },
     tap()  { tone(1200, 0, .04, "sine", .06); },
+    // a crowd roar: shaped noise with a few whoops on top
+    crowd(len) {
+      const c = audio(); if (!c) return;
+      len = len || 2.2;
+      const buf = c.createBuffer(1, Math.floor(c.sampleRate * len), c.sampleRate), data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 900));
+      const src = c.createBufferSource(); src.buffer = buf;
+      const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 0.7;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.35, c.currentTime + 0.25);
+      g.gain.setValueAtTime(0.35, c.currentTime + len * 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + len);
+      src.connect(bp).connect(g).connect(c.destination); src.start(); src.stop(c.currentTime + len);
+      for (let i = 0; i < 6; i++) { const t = 0.15 + Math.random() * (len - 0.8); tone(500 + Math.random() * 500, t, 0.35, "sine", 0.05); }
+    },
   };
+  // Optional recorded clips (drop MP3s into a sounds/ folder next to index.html on the website).
+  // If a clip exists it plays instead of the synthetic voice for that moment; otherwise the caller speaks.
+  const CLIPS = { "180": "sounds/180.mp3", gameshot: "sounds/gameshot.mp3", bust: "sounds/bust.mp3", gameon: "sounds/gameon.mp3", ton: "sounds/ton.mp3", saved: "sounds/saved.mp3", bigfish: "sounds/bigfish.mp3" };
+  const clipKnown = {};
+  function playClip(key) {
+    const url = CLIPS[key]; if (!url || location.protocol === "file:") return Promise.resolve(false);
+    if (clipKnown[key] === false) return Promise.resolve(false);
+    const go = () => { try { const a = new Audio(url); a.volume = 1; return a.play().then(() => true).catch(() => false); } catch (e) { return Promise.resolve(false); } };
+    if (clipKnown[key] === true) return go();
+    return fetch(url, { method: "HEAD" }).then(r => { clipKnown[key] = r.ok; return r.ok ? go() : false; }).catch(() => { clipKnown[key] = false; return false; });
+  }
 
   // ---------- the caller (speech synthesis) ----------
   const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
@@ -431,14 +469,15 @@
   function voiceStatus(text) {
     const s = el("#voiceStatus"); if (s) s.textContent = text;
   }
-  function utter(line, v, retry) {
+  function utter(item, v, retry) {
+    const line = typeof item === "string" ? item : item.text;
     const u = new SpeechSynthesisUtterance(line);
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
-    u.rate = 0.98; u.pitch = 0.9; u.volume = 1;
+    u.rate = (item && item.rate) || 0.98; u.pitch = (item && item.pitch) || 0.9; u.volume = 1;
     u.onstart = () => { started = true; voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
     u.onend = () => voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`);
     u.onerror = e => {
-      if (retry && v && e.error !== "interrupted" && e.error !== "canceled") { voiceStatus(`${v.name} failed (${e.error}), trying the default voice…`); utter(line, null, false); }
+      if (retry && v && e.error !== "interrupted" && e.error !== "canceled") { voiceStatus(`${v.name} failed (${e.error}), trying the default voice…`); utter(item, null, false); }
       else if (e.error !== "interrupted" && e.error !== "canceled") voiceStatus(`The browser refused to speak: ${e.error}.`);
     };
     keep.push(u); if (keep.length > 24) keep.shift();
@@ -447,7 +486,7 @@
   function speak(text, opts) {
     if (!canSpeak || !state.voice || !text) return;
     if (!(opts && opts.queue)) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } pendingLines = []; }
-    pendingLines.push(text);
+    pendingLines.push({ text, pitch: opts && opts.pitch, rate: opts && opts.rate });
     if (flushTimer) clearTimeout(flushTimer);
     flushTimer = setTimeout(() => {
       flushTimer = null;
@@ -704,7 +743,7 @@
     el("#startBtn").addEventListener("click", () => {
       audio();
       state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
-      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
+      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
       speak(state.mode === "bull" ? "Game on." : `Game on. ${state.x01.start}.`);
       announceTurn();
     });
@@ -739,7 +778,7 @@
   }
 
   function playMeta(chips) {
-    meta.innerHTML = chips + voiceButton() + `<button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+    meta.innerHTML = chips + voiceButton() + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
   }
   function scoreboardBull() {
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
@@ -772,6 +811,8 @@
   function wirePlay() {
     el("#saveBtn").addEventListener("click", () => set({ dialog: { type: "save" } }));
     el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
+    el("#undoBtn").addEventListener("click", undo);
+    app.querySelectorAll("[data-undo]").forEach(b => b.addEventListener("click", undo));
     app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
     const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
     const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
@@ -830,6 +871,7 @@
         <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : r.saved ? `No points lost · stays on level ${r.level} · ${state.bullKeep ? `${r.target} again next turn` : "new checkout next turn"}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
         <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
+        ${undoLink()}
     </div></div>`;
   }
 
@@ -899,12 +941,14 @@
         <div class="big">GAME SHOT!</div>
         <div class="detail">${esc(r.player)} checks out <b>${r.scored}</b>. How many darts?</div>
         <div class="darts">${[1,2,3].map(n => `<button type="button" data-darts="${n}">${n}</button>`).join("")}</div>
+        ${undoLink()}
       </div></div>`;
     }
-    return `<div class="result ${r.bust ? "miss" : r.scored >= 100 ? "hit" : "neutral"}" role="status"><div>
-        <div class="big">${r.bust ? "BUST" : r.scored === 180 ? "180!" : r.scored}</div>
+    return `<div class="result ${r.bust ? "miss" : r.scored === 180 ? "mega" : r.scored >= 100 ? "hit" : "neutral"}" role="status"><div>
+        <div class="big">${r.bust ? "BUST" : r.scored === 180 ? "180!" : r.scored >= 140 ? r.scored + "!" : r.scored}</div>
         <div class="detail">${r.bust ? `Score stays on <b>${r.remaining}</b>` : `${esc(r.player)} requires <b>${r.remaining}</b>`}${r.suggest ? ` · ${esc(r.suggest)}` : ""}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
+        ${undoLink()}
     </div></div>`;
   }
 
@@ -920,7 +964,54 @@
           <button class="btn" id="againBtn" type="button">Play again, same players</button>
           <button class="btn brass" id="changeBtn" type="button">Change players</button>
         </div>
+        ${state.undo && state.undo.length ? `<button type="button" class="undo" data-undo="1" style="color:#6b5a2c">Wrong score? Undo the last throw</button>` : ""}
     </div></div>`;
+  }
+
+  // ---------- undo ----------
+  // A snapshot is taken before every throw is recorded; Undo puts the game back exactly as it was.
+  function snapshot(label) {
+    const snap = { label, players: JSON.parse(JSON.stringify(state.players)), current: state.current, rounds: state.rounds.slice(), round: state.round, leg: state.leg, legStarter: state.legStarter };
+    state.undo = (state.undo || []).concat([snap]).slice(-30);
+  }
+  function undo() {
+    if (!state.undo || !state.undo.length || state.dialog) return;
+    const snap = state.undo[state.undo.length - 1];
+    state.undo = state.undo.slice(0, -1);
+    if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+    set({ players: snap.players, current: snap.current, rounds: snap.rounds, round: snap.round, leg: snap.leg, legStarter: snap.legStarter, result: null, winner: null, entry: "", msg: `Undone: ${snap.label}. ${state.players[snap.current] ? state.players[snap.current].name : ""} to throw again.` });
+    speak(`Undone. ${state.players[state.current].name} to throw again.`);
+  }
+  function undoLink() { return state.undo && state.undo.length ? `<button type="button" class="undo" data-undo="1">Wrong? Undo that</button>` : ""; }
+
+  // ---------- celebrations ----------
+  function confetti(n) {
+    const box = document.createElement("div"); box.className = "confetti";
+    const cols = ["#ff4d3d", "#ffd45c", "#37d67a", "#4da3ff", "#fff4d6", "#ff8c2e"];
+    for (let i = 0; i < (n || 80); i++) {
+      const p = document.createElement("i");
+      p.style.left = Math.random() * 100 + "vw"; p.style.background = cols[i % cols.length];
+      p.style.animationDuration = (1.6 + Math.random() * 1.6) + "s"; p.style.animationDelay = (Math.random() * .6) + "s";
+      p.style.transform = `rotate(${Math.random() * 360}deg)`; p.style.width = (6 + Math.random() * 8) + "px";
+      box.appendChild(p);
+    }
+    document.body.appendChild(box); setTimeout(() => box.remove(), 3600);
+    document.body.classList.remove("flash"); void document.body.offsetWidth; document.body.classList.add("flash");
+  }
+  function big180(name) {
+    sfx.crowd(2.6); confetti(120);
+    playClip("180").then(played => { if (!played) speak("ONE HUNDRED AND EIGHTYYYY!", { pitch: 1.15, rate: 0.8 }); });
+  }
+  const numberWord = n => n === 100 ? "a ton" : n === 140 ? "ton forty" : n === 160 ? "ton sixty" : String(n);
+  // The line the caller says after a scoring visit in 501
+  function callVisit(scored, p, s) {
+    const tail = ` ${p.name}, you require ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "");
+    if (scored === 180) { big180(p.name); speak(tail, { queue: true }); return; }
+    if (scored >= 171) { sfx.crowd(1.6); speak(`${scored}! Wonderful darts!`, { pitch: 1.1, rate: 0.9 }); speak(tail, { queue: true }); return; }
+    if (scored >= 140) { sfx.crowd(1.4); speak(`${numberWord(scored)}!`, { pitch: 1.08, rate: 0.9 }); speak(tail, { queue: true }); return; }
+    if (scored >= 100) { playClip("ton").then(played => { if (!played) speak(`${numberWord(scored)}!`, { pitch: 1.04 }); speak(tail, { queue: true }); }); return; }
+    if (scored === 26) { speak("Twenty six. Bed and breakfast."); speak(tail, { queue: true }); return; }
+    speak(callScore(scored) + tail);
   }
 
   // ---------- game flow: Saved by the Bull ----------
@@ -931,16 +1022,21 @@
     const L = LEVELS[p.level - 1];
     const before = p.level;
     const hit = outcome === "hit", saved = outcome === "bull";
+    snapshot(`${p.name} ${hit ? "hit" : saved ? "saved by the bull on" : "missed"} ${p.target}`);
     let delta = 0;
-    if (hit) { delta = L.points; p.score += delta; if (p.level < 5) p.level++; sfx.hit(); }
-    else if (saved) { sfx.hit(); }
+    if (hit) { delta = L.points; p.score += delta; if (p.level < 5) p.level++; sfx.hit(); if (before >= 4) { sfx.crowd(1.6); confetti(60); } }
+    else if (saved) { sfx.hit(); sfx.crowd(1.4); }
     else { delta = L.penalty; p.score = Math.max(0, p.score - delta); p.level = L.failTo; sfx.miss(); }
     const usedTarget = p.target;
     if (!(saved && state.bullKeep)) p.target = randomTarget(p.level);
     const result = { player: p.name, hit, saved, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
-    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game shot! ${p.name} wins with ${p.score} points.`); return; }
-    speak(hit ? `Hit! ${delta} points. ${p.name} has ${p.score}.` : saved ? `Saved by the bull! ${p.name} stays on level ${p.level}.` : (delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`));
+    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(150); playClip("gameshot").then(pl => { if (!pl) speak(`GAME SHOT! ${p.name} wins with ${p.score} points!`, { pitch: 1.12, rate: 0.85 }); }); return; }
+    if (hit && before === 5) speak(`WHAT A CHECKOUT! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.12, rate: 0.85 });
+    else if (hit && before === 4) speak(`Yes! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.06 });
+    else if (hit) speak(`Hit! ${delta} points. ${p.name} has ${p.score}.`);
+    else if (saved) playClip("saved").then(pl => { if (!pl) speak(`SAVED BY THE BULL! ${p.name} stays on level ${p.level}.`, { pitch: 1.1, rate: 0.88 }); });
+    else speak(delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`);
     set({ result });
   }
 
@@ -956,30 +1052,35 @@
       if (left < 0 || left === 1) bust = true;
       else if (left === 0) {
         if (scored > 170 || !CHECKOUTS[scored]) { set({ msg: `${scored} isn't a finish. Enter what you scored, or Bust.` }); return; }
+        snapshot(`${p.name} checked out ${scored}`);
         p.remaining = 0; p.pointsScored += scored;
         const r = { player: p.name, scored, checkout: true, leg: state.leg };
-        sfx.hit(); speak(`Game shot!`);
+        sfx.hit(); sfx.crowd(2.4); confetti(scored >= 100 ? 140 : 70);
+        const key = scored === 170 ? "bigfish" : "gameshot";
+        playClip(key).then(pl => { if (!pl) speak(scored === 170 ? "THE BIG FISH! ONE HUNDRED AND SEVENTY! GAME SHOT!" : scored >= 100 ? `WHAT A FINISH! ${scored}! GAME SHOT!` : "GAME SHOT!", { pitch: 1.12, rate: 0.85 }); });
         set({ result: r, entry: "", msg: "" });
         return;
       }
     }
+    snapshot(`${p.name} ${bust ? "bust" : "scored " + scored}`);
     const pointsHit = bust ? 0 : scored;
     if (!bust) p.remaining -= scored;
     p.dartsThrown += 3; p.pointsScored += pointsHit; p.last = bust ? 0 : scored;
     const s = suggestion(p.remaining);
     const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
     state.rounds.push(r);
-    if (bust) { sfx.miss(); speak(`Bust. ${p.name} still requires ${p.remaining}.`); }
-    else { if (scored >= 100) sfx.hit(); else sfx.tap(); speak(callScore(scored) + ` ${p.name} requires ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "")); }
+    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) speak(`No score! Bust. ${p.name} still requires ${p.remaining}.`); else speak(`${p.name} still requires ${p.remaining}.`, { queue: true }); }); }
+    else { if (scored >= 100) sfx.hit(); else sfx.tap(); callVisit(scored, p, s); }
     set({ result: r, entry: "", msg: "" });
   }
   function finishLeg(darts) {
     const p = state.players[state.current];
     const scored = state.result ? state.result.scored : 0;
+    snapshot(`${p.name} won leg ${state.leg}`);
     p.dartsThrown += darts; p.legs++;
     state.rounds.push({ player: p.name, legWon: true, leg: state.leg, darts, scored });
-    if (p.legs >= state.x01.legs) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game, shot and the match. ${p.name}!`); return; }
-    speak(`${p.name} takes leg ${state.leg}.`);
+    if (p.legs >= state.x01.legs) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(160); speak(`GAME, SHOT, AND THE MATCH! ${p.name}!`, { pitch: 1.12, rate: 0.82 }); return; }
+    speak(`${p.name} takes leg ${state.leg}.`, { pitch: 1.05 });
     // next leg: everyone back to the start, the starter alternates
     state.players.forEach(q => { q.remaining = state.x01.start; q.last = null; });
     const starter = (state.legStarter + 1) % state.players.length;
@@ -1010,13 +1111,13 @@
   }
   function playAgain() {
     resetPlayers();
-    set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
+    set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
     speak("Game on."); announceTurn();
   }
   function resetToSetup() {
     resetPlayers();
     if (canSpeak) speechSynthesis.cancel();
-    set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
+    set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
   }
 
   // keyboard shortcuts during play
@@ -1024,6 +1125,7 @@
     if (state.screen !== "play" || state.winner != null) return;
     if (e.target && (e.target.tagName === "INPUT")) return;
     if (state.dialog) { if (e.key === "Escape") set({ dialog: null }); return; }
+    if (e.key.toLowerCase() === "u" || (e.key.toLowerCase() === "z" && (e.metaKey || e.ctrlKey))) { e.preventDefault(); undo(); return; }
     if (state.result) {
       if (state.result.checkout && /^[1-3]$/.test(e.key)) { e.preventDefault(); finishLeg(+e.key); return; }
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nextTurn(); }
