@@ -51,3 +51,14 @@ The March 2025 version had SIX levels (level 5 was 101-120, level 6 was 121-170)
 hit points of 3/4/6/8/10/12, miss penalties of 0/2/5/6/8/8, a miss always dropped
 exactly one level, and there was no 50-point win: you played rounds until you chose
 to stop and the highest score won. The June 2025 rules above replaced it.
+
+# 501 mode (added 2026-09-13)
+
+- Choose a start of 301, 501 or 701 and how many legs win the match. The starter alternates each leg.
+- Each turn, enter the total of the three darts (or say it into the microphone where the browser allows).
+- Standard double-out: the last dart must be a double or the bull. Going below zero, leaving 1, or a
+  finish that isn't possible is a BUST and the score stays as it was.
+- When a finish is on (170 or less, not a bogey number) the standard checkout route is shown and read out.
+  When it isn't, the game suggests what to score to leave a good finish, e.g. "Score 180 to leave 141".
+- On a checkout the player says how many darts it took, for the three-dart average.
+- The caller voice (browser speech) announces scores, "you require", and the suggested checkout. Toggle it in the header.

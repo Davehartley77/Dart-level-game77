@@ -54,6 +54,7 @@
   .chip strong { color: var(--brass-2); font-size: 18px; margin-left: 4px; }
   .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--bone-2); padding: 8px 14px; border-radius: 8px; font-weight: 600; }
   .btn-ghost:hover { border-color: var(--brass); color: var(--brass-2); }
+  .btn-ghost[aria-pressed="true"] { border-color: var(--brass); color: var(--brass-2); background: rgba(201,162,75,.12); }
 
   /* ---------- buttons ---------- */
   .btn { border: none; border-radius: 10px; padding: 14px 22px; font-family: var(--num); font-weight: 800; font-size: 20px; letter-spacing: .06em; text-transform: uppercase; color: var(--bone); background: var(--green); box-shadow: 0 4px 0 #14502f, var(--shadow); transition: transform .08s, box-shadow .08s; }
@@ -64,12 +65,22 @@
   .btn.red:hover { background: var(--red-2); }
   .btn.brass { background: var(--brass); color: var(--ink); box-shadow: 0 4px 0 #7d6229, var(--shadow); }
   .btn.brass:hover { background: var(--brass-2); }
+  .btn.quiet { background: #d9cdae; color: var(--ink); box-shadow: 0 4px 0 #a8996f, var(--shadow); }
+  .btn.quiet:hover { background: #e6dcc2; }
 
   /* ---------- setup ---------- */
   .setup { display: grid; grid-template-columns: 1.1fr .9fr; gap: 22px; align-items: start; }
   @media (max-width: 760px) { .setup { grid-template-columns: 1fr; } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
   .card h2 { font-family: var(--num); font-weight: 800; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass-2); margin: 0 0 14px; }
+  .span2 { grid-column: 1 / -1; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .modes { grid-template-columns: 1fr; } }
+  .mode { border: 2px solid var(--line); background: var(--felt); color: var(--bone); border-radius: 14px; padding: 16px 18px; text-align: left; display: grid; gap: 4px; }
+  .mode .t { font-family: var(--display); font-size: 20px; line-height: 1.1; }
+  .mode .d { color: var(--muted); font-size: 14px; }
+  .mode[aria-pressed="true"] { border-color: var(--brass); background: var(--bone); color: var(--ink); }
+  .mode[aria-pressed="true"] .d { color: #6b5a2c; }
   .field { display: flex; gap: 10px; }
   .field input { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--felt); color: var(--bone); font-size: 18px; }
   .field input::placeholder { color: var(--muted); }
@@ -83,18 +94,21 @@
   .roster li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--felt); border-radius: 10px; border: 1px solid var(--line); }
   .roster .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
   .roster .name { flex: 1; font-weight: 600; font-size: 17px; }
-  .roster .remove { background: none; border: none; color: var(--muted); font-size: 18px; padding: 2px 6px; }
-  .roster .remove:hover { color: var(--red-2); }
+  .remove { background: none; border: none; color: var(--muted); font-size: 18px; padding: 2px 6px; }
+  .remove:hover { color: var(--red-2); }
   .empty { color: var(--muted); font-style: italic; margin: 16px 0 0; }
 
-  .targets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .target-opt { border: 2px solid var(--line); background: var(--felt); color: var(--bone); border-radius: 12px; padding: 14px 6px 10px; text-align: center; font-family: var(--num); font-weight: 800; font-size: 34px; line-height: 1; }
-  .target-opt small { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 6px; font-weight: 600; }
-  .target-opt[aria-pressed="true"] { border-color: var(--brass); background: var(--bone); color: var(--ink); }
-  .target-opt[aria-pressed="true"] small { color: #6b5a2c; }
+  .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .opt { border: 2px solid var(--line); background: var(--felt); color: var(--bone); border-radius: 12px; padding: 14px 6px 10px; text-align: center; font-family: var(--num); font-weight: 800; font-size: 34px; line-height: 1; }
+  .opt small { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 6px; font-weight: 600; }
+  .opt[aria-pressed="true"] { border-color: var(--brass); background: var(--bone); color: var(--ink); }
+  .opt[aria-pressed="true"] small { color: #6b5a2c; }
+  .opts.small .opt { font-size: 24px; padding: 10px 6px 8px; }
   .custom { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .custom input { width: 110px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--felt); color: var(--bone); font-family: var(--num); font-size: 24px; font-weight: 700; }
   .custom label { color: var(--muted); font-size: 14px; }
+  .sub-h { font-family: var(--num); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 16px 0 8px; }
+  .sub-h:first-of-type { margin-top: 0; }
 
   .rules-table { width: 100%; border-collapse: collapse; font-family: var(--num); font-size: 17px; }
   .rules-table th, .rules-table td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
@@ -133,34 +147,51 @@
   .submit-row .btn small { display: block; font-size: 13px; letter-spacing: .12em; opacity: .85; margin-top: 4px; }
   .hint { text-align: center; color: #6b5a2c; font-size: 14px; margin: 12px 0 0; }
 
-  /* in-page dialog (the browser's own confirm box is blocked inside the artifact) */
-  .dialog { position: fixed; inset: 0; background: rgba(8,15,11,.8); display: grid; place-items: center; padding: 20px; z-index: 30; }
-  .dialog .inner { background: var(--bone); color: var(--ink); border: 4px solid var(--brass); border-radius: 16px; padding: 26px; max-width: 440px; width: 100%; box-shadow: var(--shadow); animation: pop .2s ease-out; }
-  .dialog h3 { font-family: var(--display); font-size: 24px; margin: 0 0 8px; line-height: 1.1; }
-  .dialog p { margin: 0 0 20px; color: #4a3f22; }
-  .dialog .actions { display: grid; gap: 10px; }
-  .btn.quiet { background: #d9cdae; color: var(--ink); box-shadow: 0 4px 0 #a8996f, var(--shadow); }
-  .btn.quiet:hover { background: #e6dcc2; }
+  /* 501 */
+  .req { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; margin-top: 14px; }
+  @media (max-width: 520px) { .req { grid-template-columns: 1fr; } }
+  .req .label { font-family: var(--num); font-size: 14px; letter-spacing: .18em; text-transform: uppercase; color: #6b5a2c; font-weight: 700; }
+  .req .n { font-family: var(--display); font-size: clamp(64px, 12vw, 104px); line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .req .n.finish { color: var(--red); }
+  .suggest { background: var(--ink); color: var(--bone); border-radius: 12px; padding: 12px 16px; min-width: 220px; }
+  .suggest .label { color: var(--brass-2); font-family: var(--num); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
+  .suggest .route { font-family: var(--num); font-size: 28px; font-weight: 800; line-height: 1.15; margin-top: 4px; }
+  .suggest .route.small { font-size: 20px; }
+  .suggest .why { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .suggest.finish { background: var(--green); }
+  .suggest.finish .label { color: var(--bone); opacity: .85; }
+  .suggest.finish .why { color: rgba(237,227,203,.85); }
 
-  /* saved games */
-  .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .saved li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 12px 14px; background: var(--felt); border-radius: 10px; border: 1px solid var(--line); }
-  .saved .title { font-weight: 700; font-size: 16px; }
-  .saved .when { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .saved .btn { padding: 10px 14px; font-size: 16px; }
-  .saved .remove { background: none; border: none; color: var(--muted); font-size: 18px; padding: 2px 6px; }
-  .saved .remove:hover { color: var(--red-2); }
-
-  .pcard .leave { grid-column: 1 / -1; justify-self: end; background: none; border: none; color: var(--muted); font-family: var(--num); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding: 2px 0 0; }
-  .pcard .leave:hover { color: var(--red-2); }
+  .entry { margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: stretch; }
+  @media (max-width: 560px) { .entry { grid-template-columns: 1fr; } }
+  .scored { background: var(--ink); color: var(--bone); border-radius: 12px; padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .scored .label { font-family: var(--num); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .scored .value { font-family: var(--num); font-size: 60px; font-weight: 800; line-height: 1; min-height: 60px; font-variant-numeric: tabular-nums; }
+  .scored .value.empty { color: #4d5a50; }
+  .scored .msg { font-size: 14px; color: var(--red-2); min-height: 20px; font-weight: 600; }
+  .quick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .quick button { border: 1px solid #3a5544; background: var(--felt-2); color: var(--bone-2); border-radius: 8px; padding: 6px 10px; font-family: var(--num); font-weight: 700; font-size: 16px; }
+  .quick button:hover { border-color: var(--brass); color: var(--brass-2); }
+  .pad { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; }
+  .pad button { height: 52px; border-radius: 10px; border: 2px solid #b9ad8f; background: #fbf6e8; color: var(--ink); font-family: var(--num); font-weight: 800; font-size: 26px; }
+  .pad button:hover { background: #fff; border-color: var(--brass); }
+  .pad button.del { font-size: 18px; background: #e9dfc4; }
+  .pad button.mic { font-size: 20px; background: #e9dfc4; }
+  .pad button.mic[aria-pressed="true"] { background: var(--red); color: var(--bone); border-color: var(--red); }
+  .x01-row { margin-top: 14px; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+  .x01-row .btn { padding: 18px 16px; font-size: 24px; }
 
   /* result overlay inside turn card */
-  .result { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; background: var(--green); color: var(--bone); animation: pop .25s ease-out; }
+  .result { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; background: var(--green); color: var(--bone); animation: pop .25s ease-out; z-index: 2; }
   .result.miss { background: var(--red); }
+  .result.neutral { background: var(--ink); }
   .result .big { font-family: var(--display); font-size: clamp(40px, 8vw, 72px); line-height: 1; text-shadow: 0 4px 0 rgba(0,0,0,.3); }
   .result .detail { font-family: var(--num); font-size: 22px; font-weight: 600; margin: 10px 0 18px; }
   .result .detail b { font-size: 30px; }
   .result .btn { background: var(--bone); color: var(--ink); box-shadow: 0 4px 0 rgba(0,0,0,.35); }
+  .result .darts { display: flex; gap: 10px; justify-content: center; margin: 6px 0 16px; }
+  .result .darts button { width: 64px; height: 64px; border-radius: 12px; border: 3px solid rgba(255,255,255,.5); background: transparent; color: var(--bone); font-family: var(--num); font-size: 30px; font-weight: 800; }
+  .result .darts button:hover { background: rgba(255,255,255,.15); }
   @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
 
   /* players */
@@ -169,17 +200,22 @@
   .pcard.active { border-color: var(--brass); box-shadow: 0 0 0 2px rgba(201,162,75,.35), var(--shadow); }
   .pcard .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.3); }
   .pcard .pname { font-weight: 700; font-size: 17px; }
-  .pcard .sub { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .pcard .sub { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
   .pips { display: flex; gap: 4px; }
   .pip { width: 16px; height: 8px; border-radius: 3px; background: var(--line); }
   .pip.on { background: var(--brass); }
   .pcard .lvl { font-family: var(--num); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
   .pcard .tgt { font-family: var(--num); font-size: 13px; color: var(--muted); }
   .pcard .tgt b { color: var(--bone); font-size: 15px; }
+  .legs { display: flex; gap: 4px; }
+  .leg { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--brass); }
+  .leg.on { background: var(--brass); }
   .score { text-align: right; }
   .score .n { font-family: var(--num); font-size: 38px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
   .score .bar { width: 90px; height: 6px; background: var(--line); border-radius: 3px; margin-top: 6px; overflow: hidden; }
   .score .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green-2), var(--brass-2)); border-radius: 3px; transition: width .4s; }
+  .pcard .leave { grid-column: 1 / -1; justify-self: end; background: none; border: none; color: var(--muted); font-family: var(--num); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding: 2px 0 0; }
+  .pcard .leave:hover { color: var(--red-2); }
 
   .side h2 { font-family: var(--num); font-weight: 800; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass-2); margin: 18px 0 10px; }
   .side h2:first-child { margin-top: 0; }
@@ -187,26 +223,41 @@
   .history li { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; background: var(--felt-2); border-radius: 8px; font-size: 15px; }
   .history li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green-2); }
   .history li.miss::before { background: var(--red-2); }
+  .history li.neutral::before { background: var(--muted); }
   .history .r { font-family: var(--num); font-weight: 700; font-variant-numeric: tabular-nums; }
   .history .r.miss { color: var(--red-2); }
   .history .r.hit { color: var(--green-2); }
   .history .who { color: var(--muted); font-size: 13px; }
   .history .who b { color: var(--bone); font-size: 15px; }
 
-  /* winner */
-  .winner { position: fixed; inset: 0; background: rgba(8,15,11,.86); display: grid; place-items: center; padding: 20px; z-index: 20; }
-  .winner .inner { background: var(--bone); color: var(--ink); border: 6px solid var(--brass); border-radius: 20px; padding: 34px 30px; text-align: center; max-width: 520px; width: 100%; box-shadow: var(--shadow); animation: pop .3s ease-out; }
+  /* winner + dialogs */
+  .winner, .dialog { position: fixed; inset: 0; background: rgba(8,15,11,.86); display: grid; place-items: center; padding: 20px; z-index: 20; }
+  .dialog { z-index: 30; background: rgba(8,15,11,.8); }
+  .winner .inner, .dialog .inner { background: var(--bone); color: var(--ink); border: 6px solid var(--brass); border-radius: 20px; padding: 34px 30px; text-align: center; max-width: 520px; width: 100%; box-shadow: var(--shadow); animation: pop .3s ease-out; }
+  .dialog .inner { border-width: 4px; border-radius: 16px; padding: 26px; max-width: 440px; text-align: left; }
+  .dialog h3 { font-family: var(--display); font-size: 24px; margin: 0 0 8px; line-height: 1.1; }
+  .dialog p { margin: 0 0 20px; color: #4a3f22; }
+  .dialog .actions, .winner .actions { display: grid; gap: 10px; }
   .winner .eyebrow { font-family: var(--num); font-size: 15px; letter-spacing: .2em; text-transform: uppercase; color: #6b5a2c; font-weight: 700; }
   .winner .name { font-family: var(--display); font-size: clamp(34px, 7vw, 56px); line-height: 1.05; color: var(--red); margin: 8px 0; }
   .winner .pts { font-family: var(--num); font-size: 22px; font-weight: 600; margin-bottom: 22px; }
-  .winner .actions { display: grid; gap: 10px; }
   .winner .avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 44px; margin: 0 auto 10px; box-shadow: inset 0 0 0 4px rgba(0,0,0,.25); }
+
+  .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .saved li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 12px 14px; background: var(--felt); border-radius: 10px; border: 1px solid var(--line); }
+  .saved .title { font-weight: 700; font-size: 16px; }
+  .saved .when { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .saved .btn { padding: 10px 14px; font-size: 16px; }
 
   .rules-drawer { margin-top: 22px; }
   .rules-drawer summary { cursor: pointer; font-family: var(--num); font-weight: 800; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass-2); list-style: none; display: flex; align-items: center; gap: 8px; }
   .rules-drawer summary::before { content: "▸"; transition: transform .2s; }
   .rules-drawer[open] summary::before { transform: rotate(90deg); }
   .rules-drawer .card { margin-top: 10px; }
+  .chart { columns: 3; column-gap: 18px; font-family: var(--num); font-size: 16px; }
+  @media (max-width: 560px) { .chart { columns: 2; } }
+  .chart div { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--line); break-inside: avoid; }
+  .chart b { color: var(--brass-2); font-variant-numeric: tabular-nums; }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
@@ -229,7 +280,7 @@
 (function () {
   "use strict";
 
-  // ---------- rules ----------
+  // ---------- Saved by the Bull rules ----------
   const LEVELS = [
     { level: 1, min: 2,   max: 40,  even: true, points: 3,  penalty: 0, failTo: 1 },
     { level: 2, min: 41,  max: 60,  points: 4,  penalty: 2, failTo: 1 },
@@ -248,14 +299,51 @@
     return t;
   }
 
+  // ---------- 501 checkout chart (standard, double out) ----------
+  const CHECKOUTS = {
+    170:"T20 T20 Bull",167:"T20 T19 Bull",164:"T20 T18 Bull",161:"T20 T17 Bull",160:"T20 T20 D20",158:"T20 T20 D19",157:"T20 T19 D20",156:"T20 T20 D18",155:"T20 T19 D19",154:"T20 T18 D20",153:"T20 T19 D18",152:"T20 T20 D16",151:"T20 T17 D20",150:"T20 T18 D18",149:"T20 T19 D16",148:"T20 T20 D14",147:"T20 T17 D18",146:"T20 T18 D16",145:"T20 T15 D20",144:"T20 T20 D12",143:"T20 T17 D16",142:"T20 T14 D20",141:"T20 T19 D12",140:"T20 T20 D10",139:"T20 T13 D20",138:"T20 T18 D12",137:"T20 T19 D10",136:"T20 T20 D8",135:"T20 T17 D12",134:"T20 T14 D16",133:"T20 T19 D8",132:"T20 T16 D12",131:"T20 T13 D16",130:"T20 T20 D5",129:"T19 T16 D12",128:"T18 T14 D16",127:"T20 T17 D8",126:"T19 T19 D6",125:"25 T20 D20",124:"T20 T16 D8",123:"T19 T16 D9",122:"T18 T18 D7",121:"T20 T11 D14",120:"T20 20 D20",119:"T19 T12 D13",118:"T20 18 D20",117:"T20 17 D20",116:"T20 16 D20",115:"T20 15 D20",114:"T20 14 D20",113:"T20 13 D20",112:"T20 12 D20",111:"T20 11 D20",110:"T20 10 D20",109:"T20 9 D20",108:"T20 8 D20",107:"T19 10 D20",106:"T20 6 D20",105:"T20 5 D20",104:"T18 10 D20",103:"T19 6 D20",102:"T20 10 D16",101:"T17 10 D20",100:"T20 D20",99:"T19 10 D16",98:"T20 D19",97:"T19 D20",96:"T20 D18",95:"T19 D19",94:"T18 D20",93:"T19 D18",92:"T20 D16",91:"T17 D20",90:"T18 D18",89:"T19 D16",88:"T16 D20",87:"T17 D18",86:"T18 D16",85:"T15 D20",84:"T20 D12",83:"T17 D16",82:"Bull D16",81:"T19 D12",80:"T20 D10",79:"T13 D20",78:"T18 D12",77:"T19 D10",76:"T20 D8",75:"T17 D12",74:"T14 D16",73:"T19 D8",72:"T16 D12",71:"T13 D16",70:"T18 D8",69:"T19 D6",68:"T20 D4",67:"T17 D8",66:"T10 D18",65:"T19 D4",64:"T16 D8",63:"T13 D12",62:"T10 D16",61:"T15 D8",60:"20 D20",59:"19 D20",58:"18 D20",57:"17 D20",56:"16 D20",55:"15 D20",54:"14 D20",53:"13 D20",52:"12 D20",51:"11 D20",50:"10 D20",49:"9 D20",48:"8 D20",47:"7 D20",46:"6 D20",45:"5 D20",44:"4 D20",43:"3 D20",42:"10 D16",41:"9 D16",40:"D20",39:"7 D16",38:"D19",37:"5 D16",36:"D18",35:"3 D16",34:"D17",33:"1 D16",32:"D16",31:"15 D8",30:"D15",29:"13 D8",28:"D14",27:"11 D8",26:"D13",25:"9 D8",24:"D12",23:"7 D8",22:"D11",21:"5 D8",20:"D10",19:"3 D8",18:"D9",17:"1 D8",16:"D8",15:"7 D4",14:"D7",13:"5 D4",12:"D6",11:"3 D4",10:"D5",9:"1 D4",8:"D4",7:"3 D2",6:"D3",5:"1 D2",4:"D2",3:"1 D1",2:"D1"
+  };
+  const IMPOSSIBLE_SCORES = new Set([163, 166, 169, 172, 173, 175, 176, 178, 179]);
+  const PREFERRED_LEAVES = [32, 40, 36, 24, 16, 8, 20, 4, 2, 50, 60, 64, 100, 120, 121, 110, 130, 140, 160, 170];
+
+  // What to do from any remaining score.
+  function suggestion(rem) {
+    if (rem <= 1) return null;
+    if (CHECKOUTS[rem]) return { finish: true, route: CHECKOUTS[rem], why: rem <= 40 && rem % 2 === 0 ? "Straight at the double" : rem <= 170 ? "Finish in " + CHECKOUTS[rem].split(" ").length : "" };
+    if (rem > 350) return { finish: false, route: "Big scoring: treble 20", why: `${rem} needs more than one visit` };
+    // Above 170: the score people actually aim for, and what it leaves.
+    for (const need of [180, 140, 100, 60, 120, 121, 125, 85, 81, 45, 41, 26, 133, 137, 160, 177, 174, 171, 20]) {
+      const L = rem - need;
+      if (L >= 2 && CHECKOUTS[L]) return { finish: false, route: `Score ${need} to leave ${L}`, why: `${L} is ${routePretty(CHECKOUTS[L])}` };
+    }
+    for (const L of PREFERRED_LEAVES) {
+      const need = rem - L;
+      if (need >= 1 && need <= 180 && !IMPOSSIBLE_SCORES.has(need)) return { finish: false, route: `Score ${need} to leave ${L}`, why: `${L} is ${CHECKOUTS[L]}` };
+    }
+    return { finish: false, route: "Big scoring: treble 20", why: `${rem} needs more than one visit` };
+  }
+  function routeWords(route) {
+    return route.split(" ").map(t => {
+      if (t === "Bull") return "bull";
+      if (t === "25") return "outer bull";
+      if (t[0] === "T") return "treble " + t.slice(1);
+      if (t[0] === "D") return "double " + t.slice(1);
+      return "single " + t;
+    }).join(", ");
+  }
+  function routePretty(route) {
+    return route.split(" ").map(t => t === "Bull" ? "Bull" : t === "25" ? "25" : t[0] === "T" ? "T" + t.slice(1) : t[0] === "D" ? "D" + t.slice(1) : t).join(" · ");
+  }
+
   // ---------- state ----------
-  const KEY = "saved-by-the-bull:v2";
+  const KEY = "saved-by-the-bull:v3";
   const SAVED_KEY = "saved-by-the-bull:saved";
-  let state = load(KEY) || freshSetup();
   let savedGames = load(SAVED_KEY) || [];
+  let state = load(KEY) || freshSetup();
 
   function freshSetup() {
-    return { screen: "setup", targetScore: 50, customTarget: "", draft: { name: "", color: COLORS[0], icon: ICONS[0] }, players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null };
+    return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, listening: false, legStarter: 0, leg: 1 };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -268,18 +356,18 @@
   // ---------- saved games ----------
   function saveGame() {
     const names = state.players.map(p => p.name).join(", ");
-    savedGames.unshift({ id: Date.now(), when: new Date().toISOString(), title: names, targetScore: state.targetScore, round: state.round,
-      game: { players: state.players, current: state.current, rounds: state.rounds, round: state.round, targetScore: state.targetScore } });
+    const game = JSON.parse(JSON.stringify(state)); game.dialog = null; game.result = null; game.entry = ""; game.msg = ""; game.listening = false;
+    savedGames.unshift({ id: Date.now(), when: new Date().toISOString(), title: names, mode: state.mode, targetScore: state.targetScore, start: state.x01.start, round: state.round, leg: state.leg, game });
     savedGames = savedGames.slice(0, 12);
-    const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget;
+    const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget; fresh.mode = state.mode; fresh.x01 = state.x01; fresh.voice = state.voice;
     state = fresh; save(); render();
   }
   function resumeGame(id) {
     const s = savedGames.find(g => g.id === id); if (!s) return;
     savedGames = savedGames.filter(g => g.id !== id);
-    const g = JSON.parse(JSON.stringify(s.game));
-    state = { ...freshSetup(), screen: "play", players: g.players, current: g.current, rounds: g.rounds, round: g.round, targetScore: g.targetScore, customTarget: TARGET_OPTIONS.includes(g.targetScore) ? "" : String(g.targetScore) };
+    state = { ...freshSetup(), ...JSON.parse(JSON.stringify(s.game)), screen: "play", dialog: null };
     save(); render();
+    announceTurn();
   }
   function whenText(iso) {
     const d = new Date(iso);
@@ -308,8 +396,78 @@
     tap()  { tone(1200, 0, .04, "sine", .06); },
   };
 
+  // ---------- the caller (speech synthesis) ----------
+  const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  let voicePick = null;
+  function pickVoice() {
+    if (!canSpeak) return null;
+    const vs = speechSynthesis.getVoices();
+    return vs.find(v => /en-GB/i.test(v.lang) && /Daniel|Google UK English Male|Arthur/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  }
+  if (canSpeak) { speechSynthesis.onvoiceschanged = () => { voicePick = pickVoice(); }; voicePick = pickVoice(); }
+  function speak(text, opts) {
+    if (!canSpeak || !state.voice || !text) return;
+    try {
+      if (!(opts && opts.queue)) speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if (!voicePick) voicePick = pickVoice();
+      if (voicePick) u.voice = voicePick;
+      u.lang = "en-GB"; u.rate = (opts && opts.rate) || 0.98; u.pitch = 0.9;
+      speechSynthesis.speak(u);
+    } catch (e) { /* no voice available */ }
+  }
+  function callScore(n) {
+    if (n === 180) return "One hundred and eighty!";
+    if (n === 0) return "No score.";
+    return String(n) + ".";
+  }
+  function announceTurn() {
+    const p = state.players[state.current]; if (!p) return;
+    if (state.mode === "bull") {
+      speak(`${p.name}. Level ${p.level}. Checkout ${p.target}.`, { queue: true });
+    } else {
+      const s = suggestion(p.remaining);
+      let line = `${p.name}, you require ${p.remaining}.`;
+      if (s && s.finish) line += " " + routeWords(s.route) + ".";
+      speak(line, { queue: true });
+    }
+  }
+
+  // ---------- voice entry (speech recognition, where the browser allows it) ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const WORDS = { zero:0, oh:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100 };
+  function parseSpoken(t) {
+    const digits = t.match(/\d+/); if (digits) return parseInt(digits[0], 10);
+    const w = t.toLowerCase().replace(/-/g, " ").replace(/[^a-z ]/g, "").split(/\s+/).filter(Boolean);
+    let total = 0, cur = 0, seen = false;
+    for (const x of w) {
+      if (!(x in WORDS)) { if (x === "and" || x === "a") continue; else continue; }
+      seen = true; const v = WORDS[x];
+      if (v === 100) { cur = (cur || 1) * 100; total += cur; cur = 0; }
+      else cur += v;
+    }
+    total += cur;
+    return seen ? total : null;
+  }
+  function listen() {
+    if (!SR) { set({ msg: "Voice entry isn't available in this browser." }); return; }
+    let r;
+    try { r = new SR(); } catch (e) { set({ msg: "Voice entry isn't available here." }); return; }
+    r.lang = "en-GB"; r.interimResults = false; r.maxAlternatives = 3;
+    r.onresult = e => {
+      let n = null, heard = "";
+      for (let i = 0; i < e.results[0].length && n == null; i++) { heard = e.results[0][i].transcript; n = parseSpoken(heard); }
+      if (n != null && n >= 0 && n <= 180) set({ entry: String(n), msg: `Heard "${heard.trim()}"`, listening: false });
+      else set({ msg: heard ? `Heard "${heard.trim()}", say a score from 0 to 180` : "Didn't catch that", listening: false });
+    };
+    r.onerror = e => set({ listening: false, msg: e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone isn't allowed on this page. It should work once the game is on its own website." : "Didn't catch that, try again." });
+    r.onend = () => { if (state.listening) set({ listening: false }); };
+    try { r.start(); set({ listening: true, msg: "Listening…" }); } catch (e) { set({ msg: "Couldn't start the microphone." }); }
+  }
+
   // ---------- dartboard ----------
   function drawBoard(canvas) {
+    if (!canvas) return;
     const dpr = window.devicePixelRatio || 1, size = 220;
     canvas.width = size * dpr; canvas.height = size * dpr;
     const g = canvas.getContext("2d"); g.scale(dpr, dpr);
@@ -346,23 +504,40 @@
 
   function avatar(p, cls) { return `<div class="${cls || "avatar"}" style="background:${p.color}">${p.icon}</div>`; }
   function pips(level) { return `<div class="pips" aria-label="Level ${level} of 5">${[1,2,3,4,5].map(n => `<span class="pip${n <= level ? " on" : ""}"></span>`).join("")}</div>`; }
+  function legDots(won, need) { return `<div class="legs" aria-label="${won} of ${need} legs">${Array.from({ length: need }, (_, i) => `<span class="leg${i < won ? " on" : ""}"></span>`).join("")}</div>`; }
   function rulesTable() {
     return `<table class="rules-table">
       <thead><tr><th>Level</th><th>Target between</th><th>Hit</th><th>Miss</th><th>Miss drops to</th></tr></thead>
       <tbody>${LEVELS.map(L => `<tr><td>${L.level}</td><td>${L.min}–${L.max}${L.even ? " (even)" : ""}</td><td class="plus">+${L.points}</td><td class="minus">${L.penalty ? "−" + L.penalty : "0"}</td><td>${L.failTo === L.level ? "stays" : "Level " + L.failTo}</td></tr>`).join("")}</tbody>
     </table>`;
   }
+  function checkoutChart() {
+    return `<div class="chart">${Object.keys(CHECKOUTS).map(Number).sort((a, b) => b - a).map(n => `<div><b>${n}</b><span>${routePretty(CHECKOUTS[n])}</span></div>`).join("")}</div>`;
+  }
+  function voiceButton() {
+    return canSpeak ? `<button class="btn-ghost" id="voiceBtn" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>` : "";
+  }
+  function avg(p) { return p.dartsThrown ? ((p.pointsScored / p.dartsThrown) * 3).toFixed(1) : "–"; }
 
   // ---------- render ----------
   function render() {
-    if (state.screen === "setup") renderSetup(); else renderPlay();
+    if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else renderPlayX01();
   }
 
   function renderSetup() {
-    meta.innerHTML = `<span class="chip">First to <strong>${state.targetScore}</strong></span>`;
+    const bull = state.mode === "bull";
+    meta.innerHTML = (bull ? `<span class="chip">First to <strong>${state.targetScore}</strong></span>` : `<span class="chip"><strong>${state.x01.start}</strong></span><span class="chip">First to <strong>${state.x01.legs}</strong> leg${state.x01.legs > 1 ? "s" : ""}</span>`) + voiceButton();
     const d = state.draft;
     app.innerHTML = `
       <section class="setup">
+        <div class="card span2">
+          <h2>Game</h2>
+          <div class="modes" role="group" aria-label="Game">
+            <button type="button" class="mode" data-mode="bull" aria-pressed="${bull}"><span class="t">Saved by the Bull</span><span class="d">Five levels of random checkouts. Hit to climb, miss to drop. First to the points wins.</span></button>
+            <button type="button" class="mode" data-mode="x01" aria-pressed="${!bull}"><span class="t">501</span><span class="d">The pub classic. Count down from 501, finish on a double, with checkouts suggested along the way.</span></button>
+          </div>
+        </div>
+
         <div class="card">
           <h2>Players</h2>
           <div class="field">
@@ -380,31 +555,43 @@
             : `<p class="empty">No players yet. Add at least one to start.</p>`}
         </div>
 
-        <div class="card">
+        ${bull ? `<div class="card">
           <h2>Play to</h2>
-          <div class="targets" role="group" aria-label="Winning score">
-            ${TARGET_OPTIONS.map(n => `<button type="button" class="target-opt" data-target="${n}" aria-pressed="${n === state.targetScore && !state.customTarget}">${n}<small>points</small></button>`).join("")}
+          <div class="opts" role="group" aria-label="Winning score">
+            ${TARGET_OPTIONS.map(n => `<button type="button" class="opt" data-target="${n}" aria-pressed="${n === state.targetScore && !state.customTarget}">${n}<small>points</small></button>`).join("")}
           </div>
           <div class="custom">
             <label for="customIn">Or your own:</label>
             <input id="customIn" type="number" min="5" max="999" inputmode="numeric" value="${esc(state.customTarget)}" placeholder="e.g. 100">
           </div>
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
-        </div>
+        </div>` : `<div class="card">
+          <h2>501 settings</h2>
+          <div class="sub-h">Start from</div>
+          <div class="opts" role="group" aria-label="Starting score">
+            ${[301, 501, 701].map(n => `<button type="button" class="opt" data-start="${n}" aria-pressed="${n === state.x01.start}">${n}</button>`).join("")}
+          </div>
+          <div class="sub-h">First to</div>
+          <div class="opts small" role="group" aria-label="Legs to win">
+            ${[1, 2, 3, 5, 7].map(n => `<button type="button" class="opt" data-legs="${n}" aria-pressed="${n === state.x01.legs}">${n}<small>leg${n > 1 ? "s" : ""}</small></button>`).join("")}
+          </div>
+          <p class="rules-note">Enter each player's three-dart total. Finish on a double (or the bull). Going below zero, leaving one, or finishing without a double is a bust and the score stays as it was. The starter alternates each leg.</p>
+        </div>`}
 
-        ${savedGames.length ? `<div class="card" style="grid-column: 1 / -1">
+        ${savedGames.length ? `<div class="card span2">
           <h2>Saved games</h2>
           <ul class="saved">${savedGames.map(g => `<li>
-            <div><div class="title">${esc(g.title)}</div><div class="when">Round ${g.round} · first to ${g.targetScore} · saved ${whenText(g.when)}</div></div>
+            <div><div class="title">${esc(g.title)}</div><div class="when">${g.mode === "x01" ? `${g.start}, leg ${g.leg}` : `Saved by the Bull, round ${g.round}, first to ${g.targetScore}`} · saved ${whenText(g.when)}</div></div>
             <button type="button" class="btn brass" data-resume="${g.id}">Resume</button>
             <button type="button" class="remove" data-delete="${g.id}" aria-label="Delete saved game">✕</button>
           </li>`).join("")}</ul>
         </div>` : ""}
 
-        <div class="card" style="grid-column: 1 / -1">
-          <h2>How the levels work</h2>
-          ${rulesTable()}
-          <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>
+        <div class="card span2">
+          ${bull ? `<h2>How the levels work</h2>${rulesTable()}
+          <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>`
+          : `<h2>Checkout chart</h2>${checkoutChart()}
+          <p class="rules-note">T is treble, D is double. The game shows the suggested route whenever a finish is on, and when it isn't, what to score to leave a good one.</p>`}
         </div>
 
         <div class="start-row">
@@ -415,7 +602,7 @@
     const nameIn = el("#nameIn");
     const addPlayer = () => {
       const name = nameIn.value.trim(); if (!name) { nameIn.focus(); return; }
-      state.players.push({ name, color: d.color, icon: d.icon, score: 0, level: 1, target: randomTarget(1), hits: 0, misses: 0 });
+      state.players.push({ name, color: d.color, icon: d.icon, score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
       const nextColor = COLORS[state.players.length % COLORS.length], nextIcon = ICONS[state.players.length % ICONS.length];
       set({ draft: { name: "", color: nextColor, icon: nextIcon } });
       el("#nameIn").focus();
@@ -423,29 +610,40 @@
     el("#addBtn").addEventListener("click", addPlayer);
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(); });
     nameIn.addEventListener("input", () => { d.name = nameIn.value; save(); });
+    app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ mode: b.dataset.mode }); }));
     app.querySelectorAll(".swatch").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ draft: { ...d, color: b.dataset.color } }); }));
     app.querySelectorAll(".icon-btn").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ draft: { ...d, icon: b.dataset.icon } }); }));
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
-    app.querySelectorAll(".target-opt").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
+    app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
+    app.querySelectorAll("[data-start]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, start: +b.dataset.start } })));
+    app.querySelectorAll("[data-legs]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, legs: +b.dataset.legs } })));
     const customIn = el("#customIn");
-    customIn.addEventListener("input", () => {
+    if (customIn) customIn.addEventListener("input", () => {
       const v = parseInt(customIn.value, 10);
-      if (v >= 5) { state.targetScore = v; state.customTarget = customIn.value; save(); meta.innerHTML = `<span class="chip">First to <strong>${v}</strong></span>`; app.querySelectorAll(".target-opt").forEach(b => b.setAttribute("aria-pressed", "false")); }
+      if (v >= 5) { state.targetScore = v; state.customTarget = customIn.value; save(); meta.querySelector(".chip strong").textContent = v; app.querySelectorAll("[data-target]").forEach(b => b.setAttribute("aria-pressed", "false")); }
     });
     app.querySelectorAll("[data-resume]").forEach(b => b.addEventListener("click", () => { audio(); resumeGame(+b.dataset.resume); }));
     app.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "deleteSaved", id: +b.dataset.delete } })));
     el("#startBtn").addEventListener("click", () => {
       audio();
-      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
+      state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
+      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
+      speak(state.mode === "bull" ? "Game on." : `Game on. ${state.x01.start}.`);
+      announceTurn();
     });
-    if (state.dialog) { app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
+    wireCommon();
+  }
+
+  function wireCommon() {
+    const v = el("#voiceBtn"); if (v) v.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
+    if (state.dialog) { if (!el(".dialog")) app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
   }
 
   function renderDialog(d) {
     let title, text, ok, okClass = "red";
     if (d.type === "end") { title = "End this game?"; text = "Scores will be lost. Use Save and close instead if you want to pick it up later."; ok = "End game"; }
     else if (d.type === "leave") { const p = state.players[d.index]; title = `${p ? esc(p.name) : "Player"} leaving?`; text = "They drop out of the game. Everyone else carries on and their throws stay in the history."; ok = "Yes, leave the game"; }
-    else if (d.type === "deleteSaved") { const s = savedGames.find(g => g.id === d.id); title = "Delete saved game?"; text = s ? `${esc(s.title)}, round ${s.round}. This can't be undone.` : ""; ok = "Delete"; }
+    else if (d.type === "deleteSaved") { const s = savedGames.find(g => g.id === d.id); title = "Delete saved game?"; text = s ? `${esc(s.title)}. This can't be undone.` : ""; ok = "Delete"; }
     else if (d.type === "save") { title = "Save and close?"; text = "The game is kept on this device under Saved games on the start screen. Resume it any time."; ok = "Save and close"; okClass = ""; }
     return `<div class="dialog" role="dialog" aria-label="${title}"><div class="inner">
       <h3>${title}</h3><p>${text}</p>
@@ -463,20 +661,57 @@
     });
   }
 
-  function renderPlay() {
+  function playMeta(chips) {
+    meta.innerHTML = chips + voiceButton() + `<button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+  }
+  function scoreboardBull() {
+    return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
+      <div class="pcard${i === state.current ? " active" : ""}">
+        ${avatar(q)}
+        <div><div class="pname">${esc(q.name)}</div><div class="sub">${pips(q.level)}<span class="lvl">Lvl ${q.level}</span><span class="tgt">next <b>${q.target}</b></span></div></div>
+        <div class="score"><div class="n">${q.score}</div><div class="bar"><i style="width:${Math.min(100, q.score / state.targetScore * 100)}%"></i></div></div>
+        ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
+      </div>`).join("")}</div>`;
+  }
+  function scoreboardX01() {
+    return `<div class="players">${state.players.map((q, i) => `
+      <div class="pcard${i === state.current ? " active" : ""}">
+        ${avatar(q)}
+        <div><div class="pname">${esc(q.name)}</div><div class="sub">${state.x01.legs > 1 ? legDots(q.legs, state.x01.legs) : ""}<span class="tgt">avg <b>${avg(q)}</b></span><span class="tgt">last <b>${q.last == null ? "–" : q.last}</b></span></div></div>
+        <div class="score"><div class="n">${q.remaining}</div><div class="bar"><i style="width:${Math.min(100, (state.x01.start - q.remaining) / state.x01.start * 100)}%"></i></div></div>
+        ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
+      </div>`).join("")}</div>`;
+  }
+  function historyList(emptyText) {
+    if (!state.rounds.length) return `<p class="empty">${emptyText}</p>`;
+    return `<ul class="history">${[...state.rounds].reverse().map(r => {
+      if (r.left) return `<li class="neutral"><span class="who"><b>${esc(r.player)}</b> left the game</span><span class="r">round ${r.round}</span></li>`;
+      if (r.legWon) return `<li class="hit"><span class="who"><b>${esc(r.player)}</b> wins leg ${r.leg} on ${r.darts} dart${r.darts > 1 ? "s" : ""}</span><span class="r hit">${r.scored} out</span></li>`;
+      if (state.mode === "x01") return `<li class="${r.bust ? "miss" : r.scored >= 100 ? "hit" : "neutral"}"><span class="who"><b>${esc(r.player)}</b> · ${r.bust ? "bust, still needs " + r.remaining : "leaves " + r.remaining}</span><span class="r ${r.bust ? "miss" : r.scored >= 100 ? "hit" : ""}">${r.bust ? "bust" : r.scored}</span></li>`;
+      return `<li class="${r.hit ? "hit" : "miss"}"><span class="who"><b>${esc(r.player)}</b> · ${r.hit ? "hit" : "missed"} ${r.target} on level ${r.fromLevel}</span><span class="r ${r.hit ? "hit" : "miss"}">${r.hit ? "+" + r.delta : (r.delta ? "−" + r.delta : "0")} → L${r.level}</span></li>`;
+    }).join("")}</ul>`;
+  }
+  function wirePlay() {
+    el("#saveBtn").addEventListener("click", () => set({ dialog: { type: "save" } }));
+    el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
+    app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
+    const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
+    const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
+    const changeBtn = el("#changeBtn"); if (changeBtn) changeBtn.addEventListener("click", resetToSetup);
+    wireCommon();
+  }
+
+  // ----- Saved by the Bull play screen -----
+  function renderPlayBull() {
     const p = state.players[state.current];
     const L = LEVELS[p.level - 1];
-    meta.innerHTML = `<span class="chip">First to <strong>${state.targetScore}</strong></span><span class="chip">Round <strong>${state.round}</strong></span><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
-
+    playMeta(`<span class="chip">First to <strong>${state.targetScore}</strong></span><span class="chip">Round <strong>${state.round}</strong></span>`);
     app.innerHTML = `
       <section class="play">
         <div>
           <div class="turn">
             <div class="turn-head">
-              <div class="who">
-                ${avatar(p)}
-                <div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div>
-              </div>
+              <div class="who">${avatar(p)}<div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div></div>
               <div class="level-pill">Level ${p.level}</div>
             </div>
             <div class="stage">
@@ -485,6 +720,7 @@
                 <div class="label">Checkout to hit</div>
                 <div class="target">${p.target}</div>
                 <div class="worth">Hit <b>+${L.points}</b> · Miss <i>${L.penalty ? "−" + L.penalty : "0"}</i>${L.failTo < L.level ? `, back to level ${L.failTo}` : ""}</div>
+                ${CHECKOUTS[p.target] ? `<div class="worth" style="margin-top:6px">Route: <b>${routePretty(CHECKOUTS[p.target])}</b></div>` : ""}
               </div>
             </div>
             <div class="submit-row">
@@ -492,108 +728,188 @@
               <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
             <p class="hint">Throw three darts, then press one. Keyboard: H for hit, M for missed.</p>
-            ${state.result ? renderResult(state.result) : ""}
+            ${state.result ? renderResultBull(state.result) : ""}
           </div>
-
-          <details class="rules-drawer">
-            <summary>Level table</summary>
-            <div class="card">${rulesTable()}</div>
-          </details>
+          <details class="rules-drawer"><summary>Level table</summary><div class="card">${rulesTable()}</div></details>
         </div>
-
         <aside class="side">
-          <h2>Scoreboard</h2>
-          <div class="players">
-            ${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
-              <div class="pcard${i === state.current ? " active" : ""}">
-                ${avatar(q)}
-                <div>
-                  <div class="pname">${esc(q.name)}</div>
-                  <div class="sub">${pips(q.level)}<span class="lvl">Lvl ${q.level}</span><span class="tgt">next <b>${q.target}</b></span></div>
-                </div>
-                <div class="score"><div class="n">${q.score}</div><div class="bar"><i style="width:${Math.min(100, q.score / state.targetScore * 100)}%"></i></div></div>
-                ${state.players.length > 1 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
-              </div>`).join("")}
+          <h2>Scoreboard</h2>${scoreboardBull()}
+          <h2>This game</h2>${historyList(`No throws yet. ${esc(p.name)} is up first.`)}
+        </aside>
+      </section>
+      ${state.winner != null ? renderWinner() : ""}
+      ${state.dialog ? renderDialog(state.dialog) : ""}`;
+    drawBoard(el("#board"));
+    el("#hitBtn").addEventListener("click", () => submitBull(true));
+    el("#missBtn").addEventListener("click", () => submitBull(false));
+    wirePlay();
+  }
+  function renderResultBull(r) {
+    return `<div class="result ${r.hit ? "hit" : "miss"}" role="status"><div>
+        <div class="big">${r.hit ? "HIT!" : "MISSED"}</div>
+        <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
+        <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
+        <button class="btn" id="nextBtn" type="button">Next player</button>
+    </div></div>`;
+  }
+
+  // ----- 501 play screen -----
+  function renderPlayX01() {
+    const p = state.players[state.current];
+    const s = suggestion(p.remaining);
+    playMeta(`<span class="chip"><strong>${state.x01.start}</strong></span>${state.x01.legs > 1 ? `<span class="chip">Leg <strong>${state.leg}</strong> of first to ${state.x01.legs}</span>` : ""}`);
+    app.innerHTML = `
+      <section class="play">
+        <div>
+          <div class="turn">
+            <div class="turn-head">
+              <div class="who">${avatar(p)}<div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div></div>
+              <div class="level-pill">${CHECKOUTS[p.remaining] ? "Finish on" : "Scoring"}</div>
+            </div>
+            <div class="req">
+              <div><div class="label">You require</div><div class="n${s && s.finish ? " finish" : ""}">${p.remaining}</div></div>
+              ${s ? `<div class="suggest${s.finish ? " finish" : ""}"><div class="label">${s.finish ? "Checkout" : "Suggested route"}</div><div class="route${s.finish ? "" : " small"}">${s.finish ? routePretty(s.route) : esc(s.route)}</div>${s.why ? `<div class="why">${esc(s.why)}</div>` : ""}</div>` : ""}
+            </div>
+            <div class="entry">
+              <div class="scored">
+                <div class="label">Three-dart score</div>
+                <div class="value ${state.entry ? "" : "empty"}">${state.entry || "–"}</div>
+                <div class="msg">${esc(state.msg || "")}</div>
+                <div class="quick">${[26, 41, 45, 60, 81, 85, 100, 121, 140, 180].map(n => `<button type="button" data-quick="${n}">${n}</button>`).join("")}</div>
+              </div>
+              <div class="pad" aria-label="Number pad">
+                ${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" data-key="${n}">${n}</button>`).join("")}
+                <button type="button" data-key="del" class="del" aria-label="Delete">⌫</button>
+                <button type="button" data-key="0">0</button>
+                ${SR ? `<button type="button" id="micBtn" class="mic" aria-pressed="${state.listening}" aria-label="Say your score">🎤</button>` : `<button type="button" data-key="00" class="del">00</button>`}
+              </div>
+            </div>
+            <div class="x01-row">
+              <button class="btn" id="enterBtn" type="button" ${state.entry === "" ? "disabled" : ""}>Enter score</button>
+              <button class="btn red" id="bustBtn" type="button">Bust</button>
+            </div>
+            <p class="hint">Type the total of the three darts and press Enter. ${SR ? "Or tap the microphone and say it." : ""}</p>
+            ${state.result ? renderResultX01(state.result) : ""}
           </div>
-          <h2>This game</h2>
-          ${state.rounds.length
-            ? `<ul class="history">${[...state.rounds].reverse().map(r => r.left
-                ? `<li class="miss"><span class="who"><b>${esc(r.player)}</b> left the game</span><span class="r">round ${r.round}</span></li>`
-                : `<li class="${r.hit ? "hit" : "miss"}"><span class="who"><b>${esc(r.player)}</b> · ${r.hit ? "hit" : "missed"} ${r.target} on level ${r.fromLevel}</span><span class="r ${r.hit ? "hit" : "miss"}">${r.hit ? "+" + r.delta : (r.delta ? "−" + r.delta : "0")} → L${r.level}</span></li>`).join("")}</ul>`
-            : `<p class="empty">No throws yet. ${esc(p.name)} is up first.</p>`}
+          <details class="rules-drawer"><summary>Checkout chart</summary><div class="card">${checkoutChart()}</div></details>
+        </div>
+        <aside class="side">
+          <h2>Scoreboard</h2>${scoreboardX01()}
+          <h2>This leg</h2>${historyList(`No throws yet. ${esc(p.name)} throws first.`)}
         </aside>
       </section>
       ${state.winner != null ? renderWinner() : ""}
       ${state.dialog ? renderDialog(state.dialog) : ""}`;
 
-    drawBoard(el("#board"));
-
-    el("#hitBtn").addEventListener("click", () => submit(true));
-    el("#missBtn").addEventListener("click", () => submit(false));
-    el("#saveBtn").addEventListener("click", () => set({ dialog: { type: "save" } }));
-    el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
-    app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
-    const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
-    const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
-    const changeBtn = el("#changeBtn"); if (changeBtn) changeBtn.addEventListener("click", resetToSetup);
-    if (state.dialog) wireDialog();
+    app.querySelectorAll("[data-key]").forEach(b => b.addEventListener("click", () => {
+      sfx.tap(); const k = b.dataset.key; let e = state.entry;
+      if (k === "del") e = e.slice(0, -1); else if ((e + k).length <= 3) e = (e === "0" ? "" : e) + k;
+      set({ entry: e, msg: "" });
+    }));
+    app.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => { sfx.tap(); set({ entry: b.dataset.quick, msg: "" }); }));
+    const mic = el("#micBtn"); if (mic) mic.addEventListener("click", () => { audio(); if (!state.listening) listen(); });
+    el("#enterBtn").addEventListener("click", () => submitX01(parseInt(state.entry, 10)));
+    el("#bustBtn").addEventListener("click", () => submitX01("bust"));
+    app.querySelectorAll("[data-darts]").forEach(b => b.addEventListener("click", () => finishLeg(+b.dataset.darts)));
+    wirePlay();
   }
-
-  function renderResult(r) {
-    return `<div class="result ${r.hit ? "hit" : "miss"}" role="status">
-      <div>
-        <div class="big">${r.hit ? "HIT!" : "MISSED"}</div>
-        <div class="detail">${r.hit
-          ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}`
-          : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
-        <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
+  function renderResultX01(r) {
+    if (r.checkout) {
+      return `<div class="result hit" role="status"><div>
+        <div class="big">GAME SHOT!</div>
+        <div class="detail">${esc(r.player)} checks out <b>${r.scored}</b>. How many darts?</div>
+        <div class="darts">${[1,2,3].map(n => `<button type="button" data-darts="${n}">${n}</button>`).join("")}</div>
+      </div></div>`;
+    }
+    return `<div class="result ${r.bust ? "miss" : r.scored >= 100 ? "hit" : "neutral"}" role="status"><div>
+        <div class="big">${r.bust ? "BUST" : r.scored === 180 ? "180!" : r.scored}</div>
+        <div class="detail">${r.bust ? `Score stays on <b>${r.remaining}</b>` : `${esc(r.player)} requires <b>${r.remaining}</b>`}${r.suggest ? ` · ${esc(r.suggest)}` : ""}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
-      </div>
-    </div>`;
+    </div></div>`;
   }
 
   function renderWinner() {
     const w = state.players[state.winner];
-    return `<div class="winner" role="dialog" aria-label="Winner">
-      <div class="inner">
+    const line = state.mode === "bull" ? `${w.score} points · first to ${state.targetScore}` : (state.x01.legs > 1 ? `${w.legs} leg${w.legs > 1 ? "s" : ""} · first to ${state.x01.legs}` : `${state.x01.start} · ${avg(w)} average`);
+    return `<div class="winner" role="dialog" aria-label="Winner"><div class="inner">
         ${avatar(w)}
-        <div class="eyebrow">Saved by the Bull</div>
+        <div class="eyebrow">${state.mode === "bull" ? "Saved by the Bull" : "Game, shot and the match"}</div>
         <div class="name">${esc(w.name)} wins!</div>
-        <div class="pts">${w.score} points · first to ${state.targetScore}</div>
+        <div class="pts">${line}</div>
         <div class="actions">
           <button class="btn" id="againBtn" type="button">Play again, same players</button>
           <button class="btn brass" id="changeBtn" type="button">Change players</button>
         </div>
-      </div>
-    </div>`;
+    </div></div>`;
   }
 
-  // ---------- game flow ----------
-  function submit(hit) {
+  // ---------- game flow: Saved by the Bull ----------
+  function submitBull(hit) {
     if (state.result || state.dialog || state.winner != null) return;
     const p = state.players[state.current];
     const L = LEVELS[p.level - 1];
     const before = p.level;
     let delta;
-    if (hit) {
-      delta = L.points; p.score += delta; p.hits++;
-      if (p.level < 5) p.level++;
-      sfx.hit();
-    } else {
-      delta = L.penalty; p.score = Math.max(0, p.score - delta); p.misses++;
-      p.level = L.failTo;
-      sfx.miss();
-    }
+    if (hit) { delta = L.points; p.score += delta; if (p.level < 5) p.level++; sfx.hit(); }
+    else { delta = L.penalty; p.score = Math.max(0, p.score - delta); p.level = L.failTo; sfx.miss(); }
     const usedTarget = p.target;
     p.target = randomTarget(p.level);
     const result = { player: p.name, hit, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
-    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); return; }
+    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game shot! ${p.name} wins with ${p.score} points.`); return; }
+    speak(hit ? `Hit! ${delta} points. ${p.name} has ${p.score}.` : (delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`));
     set({ result });
   }
+
+  // ---------- game flow: 501 ----------
+  function submitX01(scored) {
+    if (state.result || state.dialog || state.winner != null) return;
+    const p = state.players[state.current];
+    let bust = scored === "bust";
+    if (!bust) {
+      if (!(scored >= 0 && scored <= 180)) { set({ msg: "A three-dart score is 0 to 180." }); return; }
+      if (IMPOSSIBLE_SCORES.has(scored)) { set({ msg: `${scored} can't be scored with three darts.` }); return; }
+      const left = p.remaining - scored;
+      if (left < 0 || left === 1) bust = true;
+      else if (left === 0) {
+        if (scored > 170 || !CHECKOUTS[scored]) { set({ msg: `${scored} isn't a finish. Enter what you scored, or Bust.` }); return; }
+        p.remaining = 0; p.pointsScored += scored;
+        const r = { player: p.name, scored, checkout: true, leg: state.leg };
+        sfx.hit(); speak(`Game shot!`);
+        set({ result: r, entry: "", msg: "" });
+        return;
+      }
+    }
+    const pointsHit = bust ? 0 : scored;
+    if (!bust) p.remaining -= scored;
+    p.dartsThrown += 3; p.pointsScored += pointsHit; p.last = bust ? 0 : scored;
+    const s = suggestion(p.remaining);
+    const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
+    state.rounds.push(r);
+    if (bust) { sfx.miss(); speak(`Bust. ${p.name} still requires ${p.remaining}.`); }
+    else { if (scored >= 100) sfx.hit(); else sfx.tap(); speak(callScore(scored) + ` ${p.name} requires ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "")); }
+    set({ result: r, entry: "", msg: "" });
+  }
+  function finishLeg(darts) {
+    const p = state.players[state.current];
+    const scored = state.result ? state.result.scored : 0;
+    p.dartsThrown += darts; p.legs++;
+    state.rounds.push({ player: p.name, legWon: true, leg: state.leg, darts, scored });
+    if (p.legs >= state.x01.legs) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game, shot and the match. ${p.name}!`); return; }
+    speak(`${p.name} takes leg ${state.leg}.`);
+    // next leg: everyone back to the start, the starter alternates
+    state.players.forEach(q => { q.remaining = state.x01.start; q.last = null; });
+    const starter = (state.legStarter + 1) % state.players.length;
+    set({ leg: state.leg + 1, legStarter: starter, current: starter, result: null, rounds: [], entry: "", msg: "" });
+    announceTurn();
+  }
+
+  // ---------- shared flow ----------
   function nextTurn() {
-    let next = (state.current + 1) % state.players.length;
-    set({ current: next, result: null, round: next === 0 ? state.round + 1 : state.round });
+    if (state.winner != null) return;
+    const next = (state.current + 1) % state.players.length;
+    set({ current: next, result: null, entry: "", msg: "", round: next === 0 ? state.round + 1 : state.round });
+    announceTurn();
   }
   function leaveGame(index) {
     const p = state.players[index]; if (!p) { set({ dialog: null }); return; }
@@ -603,16 +919,21 @@
     let current = state.current;
     if (index < current) current--;
     if (current >= state.players.length) current = 0;
-    // if the leaver was mid-turn, their turn is over; the next player is up
-    set({ current, result: index === state.current ? null : state.result, dialog: null });
+    let starter = state.legStarter; if (index < starter) starter--; if (starter >= state.players.length) starter = 0;
+    set({ current, legStarter: starter, result: index === state.current ? null : state.result, dialog: null, entry: "", msg: "" });
+  }
+  function resetPlayers() {
+    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
   }
   function playAgain() {
-    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.hits = 0; p.misses = 0; });
-    set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
+    resetPlayers();
+    set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
+    speak("Game on."); announceTurn();
   }
   function resetToSetup() {
-    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.hits = 0; p.misses = 0; });
-    set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null });
+    resetPlayers();
+    if (canSpeak) speechSynthesis.cancel();
+    set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1 });
   }
 
   // keyboard shortcuts during play
@@ -620,10 +941,20 @@
     if (state.screen !== "play" || state.winner != null) return;
     if (e.target && (e.target.tagName === "INPUT")) return;
     if (state.dialog) { if (e.key === "Escape") set({ dialog: null }); return; }
-    if (state.result) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nextTurn(); } return; }
-    const k = e.key.toLowerCase();
-    if (k === "h") { e.preventDefault(); submit(true); }
-    else if (k === "m") { e.preventDefault(); submit(false); }
+    if (state.result) {
+      if (state.result.checkout && /^[1-3]$/.test(e.key)) { e.preventDefault(); finishLeg(+e.key); return; }
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nextTurn(); }
+      return;
+    }
+    if (state.mode === "bull") {
+      const k = e.key.toLowerCase();
+      if (k === "h") { e.preventDefault(); submitBull(true); } else if (k === "m") { e.preventDefault(); submitBull(false); }
+    } else {
+      if (/^[0-9]$/.test(e.key)) { e.preventDefault(); const s = state.entry; if (s.length < 3) set({ entry: (s === "0" ? "" : s) + e.key, msg: "" }); }
+      else if (e.key === "Backspace") { e.preventDefault(); set({ entry: state.entry.slice(0, -1) }); }
+      else if (e.key === "Enter" && state.entry !== "") { e.preventDefault(); submitX01(parseInt(state.entry, 10)); }
+      else if (e.key.toLowerCase() === "b") { e.preventDefault(); submitX01("bust"); }
+    }
   });
 
   render();
