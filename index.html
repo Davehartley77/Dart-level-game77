@@ -1859,9 +1859,9 @@
         <div class="targets-k">
           ${!p.armed ? `<div class="target-k" style="background:rgba(242,184,59,.14)"><span class="tn">🎯</span><div><div class="tname">Bull</div><div class="tsub">hit it once and you're a killer</div></div>
             <div class="sdt"><button type="button" data-bull="1" ${p.bot ? "disabled" : ""} style="width:auto;padding:0 14px">Bull</button></div></div>` : ""}
-          <div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">${p.letters >= 6 ? "already full" : "single +1, double +2, treble +3"}</div></div>
-            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>
-          ${isKiller ? others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${q.letters} letter${q.letters === 1 ? "" : "s"} left</div></div>
+          ${p.letters < 6 ? `<div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">single +1, double +2, treble +3</div></div>
+            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>` : ""}
+          ${isKiller ? `<div class="sub-h" style="color:#6b5a2c;margin:6px 0 0">Left to kill</div>` + others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${q.letters} letter${q.letters === 1 ? "" : "s"} left</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")
           : `<p class="hint" style="text-align:left;margin:4px 0 0">${!p.armed ? "Hit the bull and the other players' numbers appear here." : "Get all six letters back and the other players' numbers appear here."}</p>`}
         </div>
@@ -1971,7 +1971,7 @@
       if (p.bot) state.bullyMood = "celebrating";
     }
     state.rounds.push({ killer: true, player: p.name, text, tag, cls });
-    if (line) say(line); else if (!t) sfx.miss();
+    if (line) say(line); else if (!t) { sfx.miss(); say(["miss"]); }
     if (cls === "hit") sfx.hit();
     const alive = state.players.filter(q => q.letters > 0);
     if (alive.length === 1 && state.players.length > 1) {
