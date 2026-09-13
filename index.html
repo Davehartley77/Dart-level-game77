@@ -358,10 +358,11 @@
   const SAVED_KEY = "saved-by-the-bull:saved";
   let savedGames = load(SAVED_KEY) || [];
   let state = load(KEY) || freshSetup();
+  state.listenMode = false; // the mic only starts from a tap on the page
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listening: false, legStarter: 0, leg: 1, undo: [] };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [] };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -374,7 +375,8 @@
   // ---------- saved games ----------
   function saveGame() {
     const names = state.players.map(p => p.name).join(", ");
-    const game = JSON.parse(JSON.stringify(state)); game.dialog = null; game.result = null; game.entry = ""; game.msg = ""; game.listening = false;
+    stopListening();
+    const game = JSON.parse(JSON.stringify(state)); game.dialog = null; game.result = null; game.entry = ""; game.msg = ""; game.listenMode = false;
     savedGames.unshift({ id: Date.now(), when: new Date().toISOString(), title: names, mode: state.mode, targetScore: state.targetScore, start: state.x01.start, round: state.round, leg: state.leg, game });
     savedGames = savedGames.slice(0, 12);
     const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget; fresh.mode = state.mode; fresh.x01 = state.x01; fresh.voice = state.voice;
@@ -474,9 +476,11 @@
     const u = new SpeechSynthesisUtterance(line);
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
     u.rate = (item && item.rate) || 0.98; u.pitch = (item && item.pitch) || 0.9; u.volume = 1;
-    u.onstart = () => { started = true; voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
-    u.onend = () => voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`);
+    u.onstart = () => { started = true; speakingNow = true; if (rec) { try { rec.abort(); } catch (e2) { /* ignore */ } } voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
+    const done = () => { speakingNow = false; lastSpeechEnd = Date.now(); if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 500); } };
+    u.onend = () => { done(); voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`); };
     u.onerror = e => {
+      done();
       if (retry && v && e.error !== "interrupted" && e.error !== "canceled") { voiceStatus(`${v.name} failed (${e.error}), trying the default voice…`); utter(item, null, false); }
       else if (e.error !== "interrupted" && e.error !== "canceled") voiceStatus(`The browser refused to speak: ${e.error}.`);
     };
@@ -534,21 +538,82 @@
     total += cur;
     return seen ? total : null;
   }
-  function listen() {
-    if (!SR) { set({ msg: "Voice entry isn't available in this browser." }); return; }
-    let r;
-    try { r = new SR(); } catch (e) { set({ msg: "Voice entry isn't available here." }); return; }
-    r.lang = "en-GB"; r.interimResults = false; r.maxAlternatives = 3;
-    r.onresult = e => {
-      let n = null, heard = "";
-      for (let i = 0; i < e.results[0].length && n == null; i++) { heard = e.results[0][i].transcript; n = parseSpoken(heard); }
-      if (n != null && n >= 0 && n <= 180) set({ entry: String(n), msg: `Heard "${heard.trim()}"`, listening: false });
-      else set({ msg: heard ? `Heard "${heard.trim()}", say a score from 0 to 180` : "Didn't catch that", listening: false });
-    };
-    r.onerror = e => set({ listening: false, msg: e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone isn't allowed on this page. It should work once the game is on its own website." : "Didn't catch that, try again." });
-    r.onend = () => { if (state.listening) set({ listening: false }); };
-    try { r.start(); set({ listening: true, msg: "Listening…" }); } catch (e) { set({ msg: "Couldn't start the microphone." }); }
+  // ---------- hands-free voice control ----------
+  // With voice control on, the mic listens throughout play. Say a score and it is entered at once;
+  // say "hit", "miss" or "bull"; "next", "undo", "bust"; and "one", "two" or "three" for darts on a checkout.
+  let rec = null, wantListening = false, speakingNow = false, lastSpeechEnd = 0, restartTimer = null, heardText = "";
+  function voiceState(text) {
+    heardText = text || "";
+    const s = el("#voiceLine"); if (s) s.textContent = text;
   }
+  function startListening() {
+    if (!SR || !wantListening) return;
+    if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } rec = null; }
+    let r;
+    try { r = new SR(); } catch (e) { voiceState("Voice control isn't available in this browser."); return; }
+    r.lang = "en-GB"; r.continuous = true; r.interimResults = false; r.maxAlternatives = 4;
+    r.onresult = e => {
+      if (speakingNow || Date.now() - lastSpeechEnd < 900) return; // that was the caller, not a player
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (!e.results[i].isFinal) continue;
+        const alts = Array.from(e.results[i]).map(a => a.transcript.trim()).filter(Boolean);
+        if (alts.length) handleVoice(alts);
+      }
+    };
+    r.onerror = e => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { wantListening = false; set({ listenMode: false, msg: "The microphone isn't allowed here. On the website, allow the microphone when the browser asks." }); }
+      else if (e.error === "no-speech" || e.error === "aborted" || e.error === "network") { /* restart via onend */ }
+      else voiceState("Mic problem: " + e.error);
+    };
+    r.onend = () => { rec = null; if (wantListening && state.screen === "play") { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, speakingNow ? 600 : 250); } };
+    try { r.start(); rec = r; voiceState("Listening…"); } catch (e) { voiceState("Couldn't start the microphone."); }
+  }
+  function stopListening() {
+    wantListening = false; clearTimeout(restartTimer);
+    if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } rec = null; }
+  }
+  function setVoiceControl(on) {
+    wantListening = !!on && !!SR;
+    set({ listenMode: wantListening, msg: "" });
+    if (wantListening) { audio(); startListening(); speak("Voice control on. Say your score."); } else stopListening();
+  }
+  const WORD_CMDS = [
+    [/\b(undo|take that back|go back)\b/, "undo"],
+    [/\b(next|next player|go on|carry on)\b/, "next"],
+    [/\b(bust|no score|busted)\b/, "bust"],
+    [/\b(saved|bull|bullseye|save)\b/, "bull"],
+    [/\b(hit|yes|got it|checked out|check out|in)\b/, "hit"],
+    [/\b(miss|missed|mist|no|missed it)\b/, "miss"],
+  ];
+  function handleVoice(alts) {
+    if (state.screen !== "play" || state.dialog || state.winner != null) return;
+    const heard = alts[0];
+    // darts used, after a checkout
+    if (state.result && state.result.checkout) {
+      for (const t of alts) { const n = parseSpoken(t); if (n >= 1 && n <= 3) { voiceState(`Heard "${heard}": ${n} darts`); finishLeg(n); return; } }
+      voiceState(`Heard "${heard}". Say one, two or three darts.`); return;
+    }
+    // words first: undo / next / hit / miss / bull / bust
+    for (const t of alts) {
+      const low = " " + t.toLowerCase() + " ";
+      for (const [re, cmd] of WORD_CMDS) {
+        if (!re.test(low)) continue;
+        if (cmd === "undo") { voiceState(`Heard "${heard}": undo`); undo(); return; }
+        if (cmd === "next") { if (state.result) { voiceState(`Heard "${heard}": next`); nextTurn(); } return; }
+        if (state.result) return; // waiting for next; ignore other words
+        if (state.mode === "bull" && (cmd === "hit" || cmd === "miss" || cmd === "bull")) { voiceState(`Heard "${heard}": ${cmd}`); submitBull(cmd); return; }
+        if (state.mode === "x01" && cmd === "bust") { voiceState(`Heard "${heard}": bust`); submitX01("bust"); return; }
+      }
+    }
+    if (state.result) return;
+    // then a number: enters straight away in 501
+    if (state.mode === "x01") {
+      for (const t of alts) { const n = parseSpoken(t); if (n != null && n >= 0 && n <= 180) { voiceState(`Heard "${heard}": ${n}`); set({ entry: String(n) }); submitX01(n); return; } }
+      voiceState(`Heard "${heard}". Say a score, "bust", "next" or "undo".`);
+    } else voiceState(`Heard "${heard}". Say "hit", "miss" or "bull".`);
+  }
+  function listen() { setVoiceControl(!state.listenMode); }
+  window.__sbbHear = alts => handleVoice(Array.isArray(alts) ? alts : [String(alts)]); // for testing without a microphone
 
   // ---------- dartboard ----------
   function drawBoard(canvas) {
@@ -778,7 +843,7 @@
   }
 
   function playMeta(chips) {
-    meta.innerHTML = chips + voiceButton() + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+    meta.innerHTML = chips + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice control on" : "🎤 Voice control"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
   }
   function scoreboardBull() {
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
@@ -813,6 +878,13 @@
     el("#quitBtn").addEventListener("click", () => set({ dialog: { type: "end" } }));
     el("#undoBtn").addEventListener("click", undo);
     app.querySelectorAll("[data-undo]").forEach(b => b.addEventListener("click", undo));
+    const vc = el("#voiceCtl"); if (vc) vc.addEventListener("click", () => setVoiceControl(!state.listenMode));
+    const vl = el("#voiceLine"); if (vl) vl.textContent = state.listenMode ? (heardText || "Listening…") : "";
+    // hands-free: move on by itself a few seconds after a result, unless someone undoes or taps first
+    if (state.listenMode && state.result && !state.result.checkout && state.winner == null) {
+      const token = state.result;
+      setTimeout(() => { if (state.result === token && state.screen === "play" && state.listenMode && !state.dialog) nextTurn(); }, 4500);
+    }
     app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
     const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
     const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
@@ -847,7 +919,8 @@
               <button class="btn brass" id="bullBtn" type="button">Saved by the Bull<small>no change · ${state.bullKeep ? `keep ${p.target}` : "new number"} next turn</small></button>
               <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
-            <p class="hint">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.</p>
+            <p class="hint">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.${SR ? " With voice control on, just say \"hit\", \"miss\" or \"bull\"." : ""}</p>
+            <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultBull(state.result) : ""}
           </div>
           <details class="rules-drawer"><summary>Level table</summary><div class="card">${rulesTable()}</div></details>
@@ -903,14 +976,15 @@
                 ${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" data-key="${n}">${n}</button>`).join("")}
                 <button type="button" data-key="del" class="del" aria-label="Delete">⌫</button>
                 <button type="button" data-key="0">0</button>
-                ${SR ? `<button type="button" id="micBtn" class="mic" aria-pressed="${state.listening}" aria-label="Say your score">🎤</button>` : `<button type="button" data-key="00" class="del">00</button>`}
+                ${SR ? `<button type="button" id="micBtn" class="mic" aria-pressed="${state.listenMode}" aria-label="Voice control">🎤</button>` : `<button type="button" data-key="00" class="del">00</button>`}
               </div>
             </div>
             <div class="x01-row">
               <button class="btn" id="enterBtn" type="button" ${state.entry === "" ? "disabled" : ""}>Enter score</button>
               <button class="btn red" id="bustBtn" type="button">Bust</button>
             </div>
-            <p class="hint">Type the total of the three darts and press Enter. ${SR ? "Or tap the microphone and say it." : ""}</p>
+            <p class="hint">Type the total of the three darts and press Enter.${SR ? " Or turn on voice control and just say it: the score goes in by itself, and \"bust\", \"next\" and \"undo\" work too." : ""}</p>
+            <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultX01(state.result) : ""}
           </div>
           <details class="rules-drawer"><summary>Checkout chart</summary><div class="card">${checkoutChart()}</div></details>
@@ -929,7 +1003,7 @@
       set({ entry: e, msg: "" });
     }));
     app.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => { sfx.tap(); set({ entry: b.dataset.quick, msg: "" }); }));
-    const mic = el("#micBtn"); if (mic) mic.addEventListener("click", () => { audio(); if (!state.listening) listen(); });
+    const mic = el("#micBtn"); if (mic) mic.addEventListener("click", () => { audio(); listen(); });
     el("#enterBtn").addEventListener("click", () => submitX01(parseInt(state.entry, 10)));
     el("#bustBtn").addEventListener("click", () => submitX01("bust"));
     app.querySelectorAll("[data-darts]").forEach(b => b.addEventListener("click", () => finishLeg(+b.dataset.darts)));
@@ -1116,6 +1190,7 @@
   }
   function resetToSetup() {
     resetPlayers();
+    stopListening(); state.listenMode = false;
     if (canSpeak) speechSynthesis.cancel();
     set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
   }
