@@ -149,7 +149,7 @@
   .turn { background: var(--bone); color: var(--ink); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); border: 4px solid var(--brass); position: relative; overflow: hidden; }
   .turn-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .who { display: flex; align-items: center; gap: 12px; }
-  .who .avatar { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.25); }
+  .who .avatar { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.25); font-family: var(--num); font-weight: 800; color: var(--ink); }
   .who .label { font-family: var(--num); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: #6b5a2c; font-weight: 700; }
   .who .pname { font-family: var(--display); font-size: clamp(18px, 3vw, 26px); line-height: 1.05; }
   .level-pill { font-family: var(--num); font-weight: 800; font-size: 17px; letter-spacing: .08em; text-transform: uppercase; background: var(--ink); color: var(--brass-2); padding: 8px 14px; border-radius: 999px; }
@@ -240,7 +240,7 @@
   .players { display: grid; gap: 10px; }
   .pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; transition: border-color .2s, box-shadow .2s; }
   .pcard.active { border-color: var(--brass); box-shadow: 0 0 0 2px rgba(201,162,75,.35), var(--shadow); }
-  .pcard .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.3); }
+  .pcard .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.3); font-family: var(--num); font-weight: 800; color: var(--ink); }
   .pcard .pname { font-weight: 700; font-size: 17px; }
   .pcard .sub { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
   .pips { display: flex; gap: 4px; }
@@ -283,7 +283,7 @@
   .winner .eyebrow { font-family: var(--num); font-size: 15px; letter-spacing: .2em; text-transform: uppercase; color: #6b5a2c; font-weight: 700; }
   .winner .name { font-family: var(--display); font-size: clamp(34px, 7vw, 56px); line-height: 1.05; color: var(--red); margin: 8px 0; }
   .winner .pts { font-family: var(--num); font-size: 22px; font-weight: 600; margin-bottom: 22px; }
-  .winner .avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 44px; margin: 0 auto 10px; box-shadow: inset 0 0 0 4px rgba(0,0,0,.25); }
+  .winner .avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 44px; margin: 0 auto 10px; box-shadow: inset 0 0 0 4px rgba(0,0,0,.25); font-family: var(--num); font-weight: 800; color: var(--ink); }
 
   .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .saved li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 12px 14px; background: var(--felt); border-radius: 10px; border: 1px solid var(--line); }
@@ -971,7 +971,7 @@
   }
   function paintBully() {
     const mood = state.bullyMood || "waiting";
-    const m = document.getElementById("bullyMark"); if (m && m.dataset.mood !== mood) { m.innerHTML = Bully.figure(mood === "throwing" ? "throwing" : mood, 84); m.dataset.mood = mood; }
+    const m = document.getElementById("bullyMark"); if (m && !m.dataset.done) { m.innerHTML = Bully.figure("waiting", 84); m.dataset.done = "1"; }
     const w = document.getElementById("bullyWatermark"); if (w && !w.dataset.done) { w.innerHTML = Bully.figure("waiting", 600); w.dataset.done = "1"; }
     const f = document.getElementById("favicon"); if (f && !f.dataset.done) { try { f.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(Bully.face("waiting", 64).replace("<svg ", '<svg style="background:#fff4d6" ')); f.dataset.done = "1"; } catch (e) { /* keep the png */ } }
   }
@@ -1017,14 +1017,8 @@
             <input id="nameIn" type="text" maxlength="16" placeholder="Player name" value="${esc(d.name)}" autocomplete="off">
             <button class="btn brass" id="addBtn" type="button">Add</button>
           </div>
-          <div class="swatches" role="group" aria-label="Colour">
-            ${COLORS.map(c => `<button type="button" class="swatch" data-color="${c}" aria-pressed="${c === d.color}" style="background:${c}" aria-label="Colour ${c}"></button>`).join("")}
-          </div>
-          <div class="icons" role="group" aria-label="Icon">
-            ${ICONS.map(i => `<button type="button" class="icon-btn" data-icon="${i}" aria-pressed="${i === d.icon}">${i}</button>`).join("")}
-          </div>
           ${state.players.length
-            ? `<ul class="roster">${state.players.map((p, i) => `<li><span class="dot" style="background:${p.color}"></span><span>${p.icon}</span><span class="name">${esc(p.name)}${p.bot ? ` <span class="lvl" style="font-family:var(--num);font-size:13px;color:var(--muted)">level ${p.botLevel} · ${botTitle(p.botLevel)}</span>` : ""}</span><button type="button" class="remove" data-remove="${i}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("")}</ul>`
+            ? `<ul class="roster">${state.players.map((p, i) => `<li><span class="dot" style="background:${p.color}"></span><span class="name">${esc(p.name)}${p.bot ? ` <span class="lvl" style="font-family:var(--num);font-size:13px;color:var(--muted)">level ${p.botLevel} · ${botTitle(p.botLevel)}</span>` : ""}</span><button type="button" class="remove" data-remove="${i}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("")}</ul>`
             : `<p class="empty">No players yet. Add at least one to start.</p>`}
           <div class="sub-h" style="margin-top:18px">Or take on Bully</div>
           <input type="range" id="botLvl" min="1" max="${BOT_LEVELS}" value="${state.botLevel}" style="width:100%" aria-label="Bully's level">
@@ -1104,7 +1098,8 @@
     const nameIn = el("#nameIn");
     const addPlayer = () => {
       const name = nameIn.value.trim(); if (!name) { nameIn.focus(); return; }
-      state.players.push({ name, color: d.color, icon: d.icon, score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
+      const color = COLORS[state.players.filter(p => !p.bot).length % COLORS.length];
+      state.players.push({ name, color, icon: name.trim().charAt(0).toUpperCase(), score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
       const nextColor = COLORS[state.players.length % COLORS.length], nextIcon = ICONS[state.players.length % ICONS.length];
       set({ draft: { name: "", color: nextColor, icon: nextIcon } });
       el("#nameIn").focus();
@@ -1113,8 +1108,6 @@
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(); });
     nameIn.addEventListener("input", () => { d.name = nameIn.value; save(); });
     app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ mode: b.dataset.mode }); }));
-    app.querySelectorAll(".swatch").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ draft: { ...d, color: b.dataset.color } }); }));
-    app.querySelectorAll(".icon-btn").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ draft: { ...d, icon: b.dataset.icon } }); }));
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
     app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
