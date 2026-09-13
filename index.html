@@ -563,7 +563,11 @@
   const IN_CLAUDE_APP = /\bClaude\/\d/.test(navigator.userAgent);
   function voices() {
     if (!canSpeak) return [];
-    try { return speechSynthesis.getVoices().slice().sort((a, b) => (/^en/i.test(b.lang) - /^en/i.test(a.lang)) || (/en-GB/i.test(b.lang) - /en-GB/i.test(a.lang)) || a.name.localeCompare(b.name)); } catch (e) { return []; }
+    try {
+      const all = speechSynthesis.getVoices().slice();
+      const en = all.filter(v => /^en([-_]|$)/i.test(v.lang));
+      return (en.length ? en : all).sort((a, b) => (/en[-_]GB/i.test(b.lang) - /en[-_]GB/i.test(a.lang)) || a.name.localeCompare(b.name));
+    } catch (e) { return []; }
   }
   function pickVoice() {
     const vs = voices(); if (!vs.length) return null;
@@ -591,7 +595,11 @@
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
     u.rate = (item && item.rate) || 0.98; u.pitch = (item && item.pitch) || 0.9; u.volume = 1;
     u.onstart = () => { started = true; speakingNow = true; if (rec) { try { rec.abort(); } catch (e2) { /* ignore */ } } voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
-    const done = () => { speakingNow = false; lastSpeechEnd = Date.now(); if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 500); } };
+    const done = () => {
+      speakingNow = false; lastSpeechEnd = Date.now();
+      (line.match(/\d+/g) || []).forEach(n => spokenNums.push({ n: +n, at: lastSpeechEnd }));
+      if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 1200); }
+    };
     u.onend = () => { done(); voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`); };
     u.onerror = e => {
       done();
@@ -641,21 +649,23 @@
   const WORDS = { zero:0, oh:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100 };
   function parseSpoken(t) {
     const digits = t.match(/\d+/); if (digits) return parseInt(digits[0], 10);
-    const w = t.toLowerCase().replace(/-/g, " ").replace(/[^a-z ]/g, "").split(/\s+/).filter(Boolean);
-    let total = 0, cur = 0, seen = false;
-    for (const x of w) {
-      if (!(x in WORDS)) { if (x === "and" || x === "a") continue; else continue; }
-      seen = true; const v = WORDS[x];
+    const w = t.toLowerCase().replace(/-/g, " ").replace(/[^a-z ]/g, "").split(/\s+/).filter(x => x in WORDS);
+    if (!w.length) return null;
+    const vals = w.map(x => WORDS[x]);
+    // "one twenty" / "one eighty" / "one oh five": a lone 1 before a smaller number means one hundred and…
+    if (vals[0] === 1 && vals.length >= 2 && vals[1] !== 100) { let rest = 0; for (let i = 1; i < vals.length; i++) rest = rest * (vals[i] === 0 ? 10 : 1) + vals[i]; return 100 + rest; }
+    let total = 0, cur = 0;
+    for (const v of vals) {
       if (v === 100) { cur = (cur || 1) * 100; total += cur; cur = 0; }
       else cur += v;
     }
-    total += cur;
-    return seen ? total : null;
+    return total + cur;
   }
   // ---------- hands-free voice control ----------
   // With voice control on, the mic listens throughout play. Say a score and it is entered at once;
   // say "hit", "miss" or "bull"; "next", "undo", "bust"; and "one", "two" or "three" for darts on a checkout.
-  let rec = null, wantListening = false, speakingNow = false, lastSpeechEnd = 0, restartTimer = null, heardText = "";
+  let rec = null, wantListening = false, speakingNow = false, lastSpeechEnd = 0, restartTimer = null, heardText = "", spokenNums = [];
+  function callerJustSaid(n) { const now = Date.now(); spokenNums = spokenNums.filter(x => now - x.at < 8000); return spokenNums.some(x => x.n === n); }
   function voiceState(text) {
     heardText = text || "";
     const s = el("#voiceLine"); if (s) s.textContent = text;
@@ -665,9 +675,13 @@
     if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } rec = null; }
     let r;
     try { r = new SR(); } catch (e) { voiceState("Voice control isn't available in this browser."); return; }
-    r.lang = "en-GB"; r.continuous = true; r.interimResults = false; r.maxAlternatives = 4;
+    if (speakingNow) return; // the caller is talking; done() restarts us afterwards
+    // One short session at a time, restarted after each result: this works the same in Chrome and Safari,
+    // and every session starts only after the caller has finished, so it never contains the caller's voice.
+    r.lang = "en-GB"; r.continuous = false; r.interimResults = false; r.maxAlternatives = 5;
+    const startedAt = Date.now();
     r.onresult = e => {
-      if (speakingNow || Date.now() - lastSpeechEnd < 900) return; // that was the caller, not a player
+      if (speakingNow || startedAt < lastSpeechEnd + 300 || Date.now() - lastSpeechEnd < 1200) { voiceState("Ignored: that was the caller."); return; }
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (!e.results[i].isFinal) continue;
         const alts = Array.from(e.results[i]).map(a => a.transcript.trim()).filter(Boolean);
@@ -675,12 +689,13 @@
       }
     };
     r.onerror = e => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { wantListening = false; set({ listenMode: false, msg: "The microphone isn't allowed here. On the website, allow the microphone when the browser asks." }); }
-      else if (e.error === "no-speech" || e.error === "aborted" || e.error === "network") { /* restart via onend */ }
-      else voiceState("Mic problem: " + e.error);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { wantListening = false; set({ listenMode: false, msg: "The microphone isn't allowed here. Allow the microphone when the browser asks, then turn voice control on again." }); }
+      else if (e.error === "no-speech" || e.error === "aborted") { /* restart via onend */ }
+      else if (e.error === "audio-capture") { wantListening = false; set({ listenMode: false, msg: "No microphone found." }); }
+      else voiceState("Mic problem: " + e.error + ". Retrying…");
     };
-    r.onend = () => { rec = null; if (wantListening && state.screen === "play") { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, speakingNow ? 600 : 250); } };
-    try { r.start(); rec = r; voiceState("Listening…"); } catch (e) { voiceState("Couldn't start the microphone."); }
+    r.onend = () => { rec = null; if (wantListening && state.screen === "play" && !speakingNow) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 150); } };
+    try { r.start(); rec = r; if (!heardText || /^Listening|^Ignored/.test(heardText)) voiceState("Listening…"); } catch (e) { voiceState("Couldn't start the microphone."); }
   }
   function stopListening() {
     wantListening = false; clearTimeout(restartTimer);
@@ -722,7 +737,12 @@
     if (state.result) return;
     // then a number: enters straight away in 501
     if (state.mode === "x01") {
-      for (const t of alts) { const n = parseSpoken(t); if (n != null && n >= 0 && n <= 180) { voiceState(`Heard "${heard}": ${n}`); set({ entry: String(n) }); submitX01(n); return; } }
+      for (const t of alts) {
+        const n = parseSpoken(t);
+        if (n == null || n < 0 || n > 180) continue;
+        if (callerJustSaid(n)) { voiceState(`Ignored ${n}: the caller just said it. Say it again.`); return; }
+        voiceState(`Heard "${heard}": ${n}`); set({ entry: String(n) }); submitX01(n); return;
+      }
       voiceState(`Heard "${heard}". Say a score, "bust", "next" or "undo".`);
     } else voiceState(`Heard "${heard}". Say "hit", "miss" or "bull".`);
   }
