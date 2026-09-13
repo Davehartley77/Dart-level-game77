@@ -466,7 +466,7 @@
   }
   function botDartsLine() {
     const p = state.players[state.current];
-    return p && p.bot && state.botDarts ? `<div class="detail" style="font-size:17px;margin-top:-6px">🤖 ${esc(state.botDarts)}</div>` : "";
+    return p && p.bot && state.botDarts ? `<div class="detail" style="font-size:17px;margin-top:-6px">🐂 ${esc(state.botDarts)}</div>` : "";
   }
 
   // ---------- state ----------
@@ -855,11 +855,11 @@
           ${state.players.length
             ? `<ul class="roster">${state.players.map((p, i) => `<li><span class="dot" style="background:${p.color}"></span><span>${p.icon}</span><span class="name">${esc(p.name)}${p.bot ? ` <span class="lvl" style="font-family:var(--num);font-size:13px;color:var(--muted)">level ${p.botLevel} · ${botTitle(p.botLevel)}</span>` : ""}</span><button type="button" class="remove" data-remove="${i}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("")}</ul>`
             : `<p class="empty">No players yet. Add at least one to start.</p>`}
-          <div class="sub-h" style="margin-top:18px">Or take on the Dart Bot</div>
-          <input type="range" id="botLvl" min="1" max="${BOT_LEVELS}" value="${state.botLevel}" style="width:100%" aria-label="Dart Bot level">
+          <div class="sub-h" style="margin-top:18px">Or take on Bully</div>
+          <input type="range" id="botLvl" min="1" max="${BOT_LEVELS}" value="${state.botLevel}" style="width:100%" aria-label="Bully's level">
           <div class="field" style="align-items:center;margin-top:8px">
             <span id="botLvlText" style="flex:1;font-family:var(--num);font-weight:700;font-size:17px">Level ${state.botLevel} · ${botTitle(state.botLevel)} · averages about ${botAverage(state.botLevel)}</span>
-            <button class="btn quiet" id="addBot" type="button" style="padding:10px 16px;font-size:16px">${state.players.some(p => p.bot) ? "Set bot level" : "Add Dart Bot"}</button>
+            <button class="btn quiet" id="addBot" type="button" style="padding:10px 16px;font-size:16px">${state.players.some(p => p.bot) ? "Set Bully's level" : "Add Bully"}</button>
           </div>
           <p class="rules-note">Level 1 is easy to beat, level ${BOT_LEVELS} is world class. He throws real darts: his scores and checkouts come from how often each dart lands where he aimed.</p>
         </div>
@@ -952,7 +952,7 @@
     el("#addBot").addEventListener("click", () => {
       d.name = nameIn.value;
       state.players = state.players.filter(p => !p.bot);
-      state.players.push({ name: "Dart Bot", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🤖", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
+      state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
       set({});
     });
     const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
