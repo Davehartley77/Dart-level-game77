@@ -840,7 +840,9 @@
     const p = state.players[state.current]; if (!p) return;
     if (state.mode === "killer") {
       if (state.killer.phase === "pick") say([{ name: p.name }, "throw-one-dart"], { queue: true });
-      else say(!p.armed ? [{ name: p.name }, "hit-the-bull"] : p.letters >= 6 ? [{ name: p.name }, "get-killing"] : [{ name: p.name }, "need-more-letters"], { queue: true });
+      else if (!p.armed) say([{ name: p.name }, "not-a-killer-yet", "hit-the-bull"].concat(banter.unarmedTurn()), { queue: true });
+      else if (p.letters >= 6) say([{ name: p.name }, "you-are-a-killer", "get-killing"].concat(banter.killerTurn()), { queue: true });
+      else say([{ name: p.name }, "still-not-a-killer", "need-more-letters"].concat(banter.shortTurn()), { queue: true });
       return;
     }
     if (state.mode === "bull") {
@@ -998,7 +1000,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer." };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer.", "you-are-a-killer": "you're a killer.", "not-a-killer-yet": "you're not a killer yet.", "still-not-a-killer": "still not a killer.", "no-mercy": "No mercy.", "make-them-suffer": "Make them suffer.", "who-fancies-it": "Who fancies it?", "pick-your-victim": "Pick your victim.", "get-your-act-together": "Get your act together.", "youre-wounded": "You're wounded, and it shows.", "dont-panic": "Don't panic.", "the-bull-is-waiting": "The bull's waiting for you.", "no-pressure": "No pressure.", goodnight: "Goodnight!", "off-to-the-bar": "Off you go to the bar.", cheerio: "Cheerio!", "that-hurt": "That hurt.", ouch: "Ouch!", brutal: "Brutal!", "dear-oh-dear": "Dear oh dear.", "nothing-at-all": "Nothing at all.", "oh-dear": "Oh dear.", shocking: "Shocking.", unlucky: "Unlucky.", lovely: "Lovely darts." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1700,6 +1702,18 @@
     </div></div>`;
   }
 
+  // ---------- banter ----------
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const banter = {
+    killerTurn: () => Math.random() < 0.7 ? [pick(["no-mercy", "make-them-suffer", "who-fancies-it", "pick-your-victim"])] : [],
+    shortTurn:  () => Math.random() < 0.7 ? [pick(["get-your-act-together", "youre-wounded", "dont-panic"])] : [],
+    unarmedTurn: () => Math.random() < 0.7 ? [pick(["the-bull-is-waiting", "no-pressure"])] : [],
+    out: () => [pick(["goodnight", "off-to-the-bar", "cheerio"])],
+    hurt: lost => lost >= 3 ? ["brutal"] : Math.random() < 0.6 ? [pick(["that-hurt", "ouch"])] : [],
+    blank: () => [pick(["dear-oh-dear", "nothing-at-all", "shocking"])],
+    bust: () => Math.random() < 0.6 ? [pick(["oh-dear", "unlucky", "shocking"])] : [],
+  };
+
   // ---------- undo ----------
   // A snapshot is taken before every throw is recorded; Undo puts the game back exactly as it was.
   function snapshot(label) {
@@ -1805,7 +1819,7 @@
     const s = suggestion(p.remaining);
     const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
     state.rounds.push(r);
-    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) say(state.listenMode ? ["bust"] : ["no-score-bust"]); }); }
+    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) say((state.listenMode ? ["bust"] : ["no-score-bust"]).concat(banter.bust())); }); }
     else { if (scored >= 100) sfx.hit(); else sfx.tap(); callVisit(scored, p, s); }
     set({ result: r, entry: "", msg: "" });
   }
@@ -1966,7 +1980,7 @@
       const before = t.letters; t.letters = Math.max(0, t.letters - mult);
       const lost = before - t.letters;
       text = `${["single", "double", "treble"][mult - 1]} ${t.number}: ${t.name} loses ${lost}${t.letters <= 0 ? ", OUT" : ""}`; tag = `−${lost}`; cls = "hit";
-      line = t.letters <= 0 ? [{ name: t.name }, "is-out"] : [{ name: t.name }, "loses", lost, lost === 1 ? "letter" : "letters"];
+      line = t.letters <= 0 ? [{ name: t.name }, "is-out"].concat(banter.out()) : [{ name: t.name }, "loses", lost, lost === 1 ? "letter" : "letters"].concat(banter.hurt(lost));
       if (t.bot) state.bullyMood = t.letters <= 0 ? "sulking" : "wince";
       if (p.bot) state.bullyMood = "celebrating";
     }
@@ -1984,6 +1998,7 @@
     const p = state.players[state.current];
     const mine = state.rounds.slice(-state.killer.darts).filter(r => r.killer && r.player === p.name);
     const summary = mine.map(r => r.tag).join(" · ") || "no darts";
+    if (mine.length === 3 && mine.every(r => r.cls === "miss")) say(banter.blank(), { queue: true });
     set({ result: { killer: true, big: !p.armed ? "NEEDS THE BULL" : p.letters >= 6 ? "KILLER" : p.letters > 0 ? `${p.letters} of 6` : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
   }
   function botKillerTurn(p) {
