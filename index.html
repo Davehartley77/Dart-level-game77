@@ -63,7 +63,7 @@
   .bully-mark { display: none; width: 92px; height: 92px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
   @media (max-width: 520px) { .bully-mark { width: 64px; height: 64px; } }
   /* Bully as a faint watermark in the corner; if the picture is missing nothing shows */
-  body::before { content: ""; position: fixed; right: -4vmin; bottom: -4vmin; width: 60vmin; height: 60vmin; background: url("images/bully.png") no-repeat center / contain; opacity: .13; pointer-events: none; z-index: 0; }
+  body::before { content: ""; position: fixed; right: -6vmin; bottom: -6vmin; width: 100vmin; height: 100vmin; background: url("images/bully.png") no-repeat center / contain; opacity: .15; pointer-events: none; z-index: 0; }
   .wrap { position: relative; z-index: 1; }
   .bully-mark.loaded { display: block; }
   .bully-mark.loaded + .bull-mark { display: none; }
