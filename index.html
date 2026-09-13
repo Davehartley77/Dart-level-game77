@@ -694,7 +694,13 @@
       if (interim.trim()) voiceState(`Hearing: "${interim.trim()}"…`);
     };
     r.onerror = e => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { wantListening = false; set({ listenMode: false, msg: "The microphone isn't allowed here. Allow the microphone when the browser asks, then turn voice control on again." }); }
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        wantListening = false;
+        const onClaude = /claudeusercontent|claude\.ai/i.test(location.hostname);
+        set({ listenMode: false, msg: onClaude
+          ? "The microphone can't be used on this claude.ai link. Open the game at davehartley77.github.io/Dart-level-game77 instead, where the browser will ask to allow it."
+          : "The browser has the microphone blocked for this site. Tap the lock or tune icon by the address, set Microphone to Allow, reload, then turn voice control on again. On iPhone: Settings, Safari, Microphone." });
+      }
       else if (e.error === "no-speech" || e.error === "aborted") { /* restart via onend */ }
       else if (e.error === "audio-capture") { wantListening = false; set({ listenMode: false, msg: "No microphone found." }); }
       else voiceState("Mic problem: " + e.error + ". Retrying…");
