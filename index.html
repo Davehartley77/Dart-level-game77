@@ -639,7 +639,7 @@
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena" };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena", page: null };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -888,7 +888,7 @@
     [/\b(miss|missed|mist|no|missed it)\b/, "miss"],
   ];
   function handleVoice(alts) {
-    if (state.screen !== "play" || state.dialog || state.winner != null) return;
+    if (state.screen !== "play" || state.dialog || state.winner != null || state.page) return;
     const heard = alts[0];
     // darts used, after a checkout
     if (state.result && state.result.checkout) {
@@ -1090,13 +1090,105 @@
 
   // ---------- render ----------
   function render() {
-    if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else renderPlayX01();
+    if (state.page === "settings") renderSettings();
+    else if (state.page === "checkouts") renderCheckouts();
+    else if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else renderPlayX01();
     paintBully();
+  }
+  function pageButtons() {
+    return `<button class="btn-ghost" id="checkoutsBtn" type="button">📋 Checkouts</button><button class="btn-ghost" id="settingsBtn" type="button">⚙ Settings</button>`;
+  }
+  function wirePageButtons() {
+    const c = el("#checkoutsBtn"); if (c) c.addEventListener("click", () => set({ page: "checkouts" }));
+    const g = el("#settingsBtn"); if (g) g.addEventListener("click", () => set({ page: "settings" }));
+    const b = el("#backBtn"); if (b) b.addEventListener("click", () => set({ page: null }));
+  }
+  function backBar() {
+    meta.innerHTML = `<button class="btn-ghost" id="backBtn" type="button">← Back to the ${state.screen === "play" ? "game" : "start screen"}</button>`;
+  }
+
+  // ----- Settings page -----
+  function renderSettings() {
+    backBar();
+    app.innerHTML = `
+      <section class="setup">
+        <div class="card span2">
+          <h2>Caller voice</h2>
+          <div class="opts" role="group" aria-label="Caller voice" style="margin-bottom:12px">
+            <button type="button" class="opt" data-caller="serena" aria-pressed="${state.callerVoice === "serena"}" style="font-size:22px">Serena<small>recorded</small></button>
+            <button type="button" class="opt" data-caller="daniel" aria-pressed="${state.callerVoice === "daniel"}" style="font-size:22px">Daniel<small>recorded</small></button>
+            <button type="button" class="opt" data-caller="device" aria-pressed="${state.callerVoice === "device"}" style="font-size:22px">Device<small>this phone's voice</small></button>
+          </div>
+          <p class="rules-note">Serena and Daniel are recordings, so they sound the same on every phone. ${location.protocol === "file:" || /claudeusercontent|claude\.ai/i.test(location.hostname) ? "They play on the website version; here the device voice is used." : "Names not in the recorded set are shown on screen rather than spoken."}</p>
+          ${IN_CLAUDE_APP ? `<p class="rules-note" style="color:var(--red-2);font-weight:600">The device voice doesn't play inside the Claude app's own window. Use Serena or Daniel, or open the page in Safari or Chrome.</p>` : ""}
+          ${canSpeak ? `<div class="field" style="flex-wrap:wrap;align-items:center">
+            <button class="btn-ghost" id="voiceBtn2" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>
+            <select id="voiceSel" aria-label="Voice" ${state.callerVoice === "device" ? "" : "hidden"} style="flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--felt);color:var(--bone);font-size:16px">
+              <option value="">Automatic (British English if available)</option>
+              ${voices().map(v => `<option value="${esc(v.name)}" ${v.name === state.voiceName ? "selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}
+            </select>
+            <button class="btn brass" id="testVoice" type="button" style="padding:10px 16px;font-size:16px">Test voice</button>
+          </div>
+          <p class="rules-note" id="voiceStatus" style="color:var(--brass-2);min-height:20px"></p>`
+          : `<p class="rules-note">This browser can't speak, so only the recorded voices work here.</p>`}
+        </div>
+
+        <div class="card span2">
+          <h2>Voice control</h2>
+          <p class="rules-note">Turn it on from the microphone button during a game. With it on, say your score and it goes in by itself; "bust", "next" and "undo" work too, and in Saved by the Bull say "hit", "miss" or "bull". The mic pauses while the caller speaks.</p>
+        </div>
+
+        <div class="card span2">
+          <h2>Saved by the Bull: after a bull save</h2>
+          <div class="opts" style="grid-template-columns:1fr 1fr" role="group" aria-label="After a bull save">
+            <button type="button" class="opt" data-bullkeep="1" aria-pressed="${state.bullKeep}" style="font-size:22px">Same number<small>have another go</small></button>
+            <button type="button" class="opt" data-bullkeep="0" aria-pressed="${!state.bullKeep}" style="font-size:22px">New number<small>fresh checkout</small></button>
+          </div>
+        </div>
+      </section>`;
+    wireCallerControls();
+    app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
+    wirePageButtons();
+    if (state.dialog) { app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
+  }
+  function wireCallerControls() {
+    const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) say(["caller-on"]); else { stopBank(); if (canSpeak) speechSynthesis.cancel(); } });
+    const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
+    app.querySelectorAll("[data-caller]").forEach(b => b.addEventListener("click", () => { stopBank(); set({ callerVoice: b.dataset.caller, voice: true }); say(["game-on", { name: "Dave" }, "you-require", 141, "treble", 20, "treble", 19, "double", 12]); }));
+    const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
+      unlockSpeech();
+      if (!state.voice) state.voice = true;
+      say(["game-on", { name: "Dave" }, "you-require", 170, "treble", 20, "treble", 20, "bull"]);
+      if (!voices().length) setTimeout(() => { if (state.page === "settings") render(); }, 600);
+    });
+  }
+
+  // ----- Checkouts page -----
+  function renderCheckouts() {
+    backBar();
+    const p = state.screen === "play" ? state.players[state.current] : null;
+    app.innerHTML = `
+      <section class="setup">
+        ${p && state.mode === "x01" && CHECKOUTS[p.remaining] ? `<div class="card span2" style="border-color:var(--brass)"><h2>${esc(p.name)} requires ${p.remaining}</h2><div style="font-family:var(--num);font-size:34px;font-weight:800">${routePretty(CHECKOUTS[p.remaining])}</div></div>` : ""}
+        ${p && state.mode === "bull" && CHECKOUTS[p.target] ? `<div class="card span2" style="border-color:var(--brass)"><h2>${esc(p.name)}'s checkout is ${p.target}</h2><div style="font-family:var(--num);font-size:34px;font-weight:800">${routePretty(CHECKOUTS[p.target])}</div></div>` : ""}
+        <div class="card span2">
+          <h2>Checkout chart</h2>
+          ${checkoutChart()}
+          <p class="rules-note">T is treble, D is double. 169, 168, 166, 165, 163, 162 and 159 can't be finished in three darts.</p>
+        </div>
+        <div class="card span2">
+          <h2>Saved by the Bull levels</h2>
+          ${rulesTable()}
+          <p class="rules-note">Hit to go up a level and bank the points; miss to lose the penalty and drop back. If the checkout becomes impossible with the darts left, throw for the bull: hit it and nothing changes.</p>
+        </div>
+      </section>`;
+    wirePageButtons();
+    if (state.dialog) { app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
   }
 
   function renderSetup() {
     const bull = state.mode === "bull";
-    meta.innerHTML = (bull ? `<span class="chip">First to <strong>${state.targetScore}</strong></span>` : `<span class="chip"><strong>${state.x01.start}</strong></span><span class="chip">First to <strong>${state.x01.legs}</strong> leg${state.x01.legs > 1 ? "s" : ""}</span>`) + voiceButton();
+    meta.innerHTML = (bull ? `<span class="chip">First to <strong>${state.targetScore}</strong></span>` : `<span class="chip"><strong>${state.x01.start}</strong></span><span class="chip">First to <strong>${state.x01.legs}</strong> leg${state.x01.legs > 1 ? "s" : ""}</span>`) + voiceButton() + pageButtons();
     const d = state.draft;
     app.innerHTML = `
       <section class="setup">
@@ -1136,11 +1228,6 @@
             <input id="customIn" type="number" min="5" max="999" inputmode="numeric" value="${esc(state.customTarget)}" placeholder="e.g. 100">
           </div>
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
-          <div class="sub-h" style="margin-top:18px">After a bull save</div>
-          <div class="opts" style="grid-template-columns:1fr 1fr" role="group" aria-label="After a bull save">
-            <button type="button" class="opt" data-bullkeep="1" aria-pressed="${state.bullKeep}" style="font-size:22px">Same number<small>have another go</small></button>
-            <button type="button" class="opt" data-bullkeep="0" aria-pressed="${!state.bullKeep}" style="font-size:22px">New number<small>fresh checkout</small></button>
-          </div>
         </div>` : `<div class="card">
           <h2>501 settings</h2>
           <div class="sub-h">Start from</div>
@@ -1154,29 +1241,6 @@
           <p class="rules-note">Enter each player's three-dart total. Finish on a double (or the bull). Going below zero, leaving one, or finishing without a double is a bust and the score stays as it was. The starter alternates each leg.</p>
         </div>`}
 
-        <div class="card span2">
-          <h2>Caller</h2>
-          <div class="sub-h">Caller voice</div>
-          <div class="opts" role="group" aria-label="Caller voice" style="margin-bottom:12px">
-            <button type="button" class="opt" data-caller="serena" aria-pressed="${state.callerVoice === "serena"}" style="font-size:22px">Serena<small>recorded</small></button>
-            <button type="button" class="opt" data-caller="daniel" aria-pressed="${state.callerVoice === "daniel"}" style="font-size:22px">Daniel<small>recorded</small></button>
-            <button type="button" class="opt" data-caller="device" aria-pressed="${state.callerVoice === "device"}" style="font-size:22px">Device<small>this phone's voice</small></button>
-          </div>
-          <p class="rules-note">Serena and Daniel are recordings, so they sound the same on every phone. ${location.protocol === "file:" || /claudeusercontent|claude\.ai/i.test(location.hostname) ? "They play on the website version; here the device voice is used." : "Names not in the recorded set are shown on screen rather than spoken."}</p>
-          ${canSpeak ? `<div class="field" style="flex-wrap:wrap;align-items:center">
-            <button class="btn-ghost" id="voiceBtn2" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>
-            <select id="voiceSel" aria-label="Voice" ${state.callerVoice === "device" ? "" : "hidden"} style="flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--felt);color:var(--bone);font-size:16px">
-              <option value="">Automatic (British English if available)</option>
-              ${voices().map(v => `<option value="${esc(v.name)}" ${v.name === state.voiceName ? "selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}
-            </select>
-            <button class="btn brass" id="testVoice" type="button" style="padding:10px 16px;font-size:16px">Test voice</button>
-          </div>
-          ${IN_CLAUDE_APP ? `<p class="rules-note" style="color:var(--red-2);font-weight:600">Speech doesn't play inside the Claude app's own window. Open this page in Safari or Chrome (use the Share button, or copy the link) and the caller will work.</p>` : ""}
-          <p class="rules-note">${voices().length ? `${voices().length} voices on this device. The caller reads out scores, "you require", checkouts and game shot.` : "This browser hasn't offered any voices yet. Press Test voice; some browsers only list voices after the first tap."}</p>
-          <p class="rules-note" id="voiceStatus" style="color:var(--brass-2);min-height:20px"></p>`
-          : `<p class="rules-note">This browser can't speak. The caller works in Chrome, Safari and Edge.</p>`}
-        </div>
-
         ${savedGames.length ? `<div class="card span2">
           <h2>Saved games</h2>
           <ul class="saved">${savedGames.map(g => `<li>
@@ -1186,13 +1250,11 @@
           </li>`).join("")}</ul>
         </div>` : ""}
 
-        <div class="card span2">
-          ${bull ? `<h2>How the levels work</h2>${rulesTable()}
+        ${bull ? `<div class="card span2">
+          <h2>How the levels work</h2>${rulesTable()}
           <p class="rules-note">Each turn you get a random checkout number for your level. Throw your three darts, then press Hit if you checked it out or Missed if you didn't. A hit goes up a level and banks the points; a miss loses the penalty and drops back. Scores never go below zero.</p>
-          <p class="rules-note"><strong style="color:var(--brass-2)">Saved by the Bull:</strong> if the checkout becomes impossible with the darts you have left (say you need 45, hit 19 then 5, and 21 can't be taken with one dart), throw the last dart at the bull. Hit it and nothing changes: no points lost, no level lost, you stay where you are and get a new checkout next turn.</p>`
-          : `<h2>Checkout chart</h2>${checkoutChart()}
-          <p class="rules-note">T is treble, D is double. The game shows the suggested route whenever a finish is on, and when it isn't, what to score to leave a good one.</p>`}
-        </div>
+          <p class="rules-note"><strong style="color:var(--brass-2)">Saved by the Bull:</strong> if the checkout becomes impossible with the darts you have left (say you need 45, hit 19 then 5, and 21 can't be taken with one dart), throw the last dart at the bull. Hit it and nothing changes: no points lost, no level lost, you stay where you are. Whether you keep the same number is in Settings.</p>
+        </div>` : ""}
 
         <div class="start-row">
           <button class="btn" id="startBtn" type="button" ${state.players.length ? "" : "disabled"}>Start game</button>
@@ -1214,7 +1276,6 @@
     app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ mode: b.dataset.mode }); }));
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
-    app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
     const bl = el("#botLvl");
     bl.addEventListener("input", () => { state.botLevel = +bl.value; save(); el("#botLvlText").textContent = `Level ${state.botLevel} · ${botTitle(state.botLevel)} · averages about ${botAverage(state.botLevel)}`; });
     el("#addBot").addEventListener("click", () => {
@@ -1223,32 +1284,17 @@
       state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
       set({});
     });
-    const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) say(["caller-on"]); else { stopBank(); if (canSpeak) speechSynthesis.cancel(); } });
-    const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
-    app.querySelectorAll("[data-caller]").forEach(b => b.addEventListener("click", () => { stopBank(); set({ callerVoice: b.dataset.caller, voice: true }); say(["game-on", { name: "Dave" }, "you-require", 141, "treble", 20, "treble", 19, "double", 12]); }));
-    const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
-      unlockSpeech();
-      if (!state.voice) state.voice = true;
-      say(["game-on", { name: "Dave" }, "you-require", 170, "treble", 20, "treble", 20, "bull"]);
-      if (!voices().length) setTimeout(() => { if (state.screen === "setup") render(); }, 600);
-    });
-    app.querySelectorAll("[data-start]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, start: +b.dataset.start } })));
-    app.querySelectorAll("[data-legs]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, legs: +b.dataset.legs } })));
-    const customIn = el("#customIn");
-    if (customIn) customIn.addEventListener("input", () => {
-      const v = parseInt(customIn.value, 10);
-      if (v >= 5) { state.targetScore = v; state.customTarget = customIn.value; save(); meta.querySelector(".chip strong").textContent = v; app.querySelectorAll("[data-target]").forEach(b => b.setAttribute("aria-pressed", "false")); }
-    });
     app.querySelectorAll("[data-resume]").forEach(b => b.addEventListener("click", () => { audio(); resumeGame(+b.dataset.resume); }));
     app.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "deleteSaved", id: +b.dataset.delete } })));
     el("#startBtn").addEventListener("click", () => {
       audio();
       state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
-      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
+      set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [], page: null });
       say(["game-on"]);
       announceTurn();
     });
     wireCommon();
+    wirePageButtons();
   }
 
   function wireCommon() {
@@ -1279,7 +1325,7 @@
   }
 
   function playMeta(chips) {
-    meta.innerHTML = chips + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice control on" : "🎤 Voice control"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+    meta.innerHTML = chips + pageButtons() + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice control on" : "🎤 Voice control"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
   }
   function scoreboardBull() {
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
@@ -1327,6 +1373,7 @@
     const nextBtn = el("#nextBtn"); if (nextBtn) nextBtn.addEventListener("click", nextTurn);
     const againBtn = el("#againBtn"); if (againBtn) againBtn.addEventListener("click", playAgain);
     const changeBtn = el("#changeBtn"); if (changeBtn) changeBtn.addEventListener("click", resetToSetup);
+    wirePageButtons();
     wireCommon();
   }
 
@@ -1361,7 +1408,6 @@
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultBull(state.result) : ""}
           </div>
-          <details class="rules-drawer"><summary>Level table</summary><div class="card">${rulesTable()}</div></details>
         </div>
         <aside class="side">
           <h2>Scoreboard</h2>${scoreboardBull()}
@@ -1426,7 +1472,6 @@
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultX01(state.result) : ""}
           </div>
-          <details class="rules-drawer"><summary>Checkout chart</summary><div class="card">${checkoutChart()}</div></details>
         </div>
         <aside class="side">
           <h2>Scoreboard</h2>${scoreboardX01()}
@@ -1642,6 +1687,7 @@
 
   // keyboard shortcuts during play
   document.addEventListener("keydown", e => {
+    if (state.page) { if (e.key === "Escape") set({ page: null }); return; }
     if (state.screen !== "play" || state.winner != null) return;
     if (e.target && (e.target.tagName === "INPUT")) return;
     if (state.dialog) { if (e.key === "Escape") set({ dialog: null }); return; }
