@@ -61,6 +61,6 @@ for name in $(cat sounds/names.txt); do
   render "name-$slug" "$name."
   echo "$slug" >> "$OUT/names.txt"
 done
-ls "$OUT" | sed 's/\.m4a$//' | grep -v '^names$' > "$OUT/manifest.txt"
+ls "$OUT" | grep '\.m4a$' | sed 's/\.m4a$//' > "$OUT/manifest.txt"
 rm -rf "$TMP"
 echo "$SLUG: $(ls "$OUT" | wc -l | tr -d ' ') files, $(du -sh "$OUT" | cut -f1)"
