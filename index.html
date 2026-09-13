@@ -1011,7 +1011,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer.", "you-are-a-killer": "you're a killer.", "not-a-killer-yet": "you're not a killer yet.", "still-not-a-killer": "still not a killer.", "no-mercy": "No mercy.", "make-them-suffer": "Make them suffer.", "who-fancies-it": "Who fancies it?", "pick-your-victim": "Pick your victim.", "get-your-act-together": "Get your act together.", "youre-wounded": "You're wounded, and it shows.", "dont-panic": "Don't panic.", "the-bull-is-waiting": "The bull's waiting for you.", "no-pressure": "No pressure.", goodnight: "Goodnight!", "off-to-the-bar": "Off you go to the bar.", cheerio: "Cheerio!", "that-hurt": "That hurt.", ouch: "Ouch!", brutal: "Brutal!", "dear-oh-dear": "Dear oh dear.", "nothing-at-all": "Nothing at all.", "oh-dear": "Oh dear.", shocking: "Shocking.", unlucky: "Unlucky.", lovely: "Lovely darts." };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer.", "you-are-a-killer": "you're a killer.", "not-a-killer-yet": "you're not a killer yet.", "still-not-a-killer": "still not a killer.", "no-mercy": "No mercy.", "make-them-suffer": "Make them suffer.", "who-fancies-it": "Who fancies it?", "pick-your-victim": "Pick your victim.", "get-your-act-together": "Get your act together.", "youre-wounded": "You're wounded, and it shows.", "dont-panic": "Don't panic.", "the-bull-is-waiting": "The bull's waiting for you.", "no-pressure": "No pressure.", goodnight: "Goodnight!", "off-to-the-bar": "Off you go to the bar.", cheerio: "Cheerio!", "that-hurt": "That hurt.", ouch: "Ouch!", brutal: "Brutal!", "dear-oh-dear": "Dear oh dear.", "nothing-at-all": "Nothing at all.", "oh-dear": "Oh dear.", shocking: "Shocking.", unlucky: "Unlucky.", lovely: "Lovely darts.", "bull-but-letters": "has hit the bull. Get the letters back and you're a killer." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1959,6 +1959,12 @@
     let text, tag, cls = "neutral", line = null;
     if (targetIdx === "bull") {
       if (p.armed) { text = "bull, no effect"; tag = "bull"; cls = "neutral"; line = ["no-effect"]; }
+      else if (p.letters < 6) {
+        // hit the bull while short of letters: armed, but not a killer until the word is full
+        p.armed = true; text = "hit the bull, needs letters back"; tag = "bull"; cls = "hit";
+        line = [{ name: p.name }, "bull-but-letters"];
+        state.notice = { big: "BULL!", detail: `${p.name} has hit the bull. Get the letters back and you're a killer.` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600);
+      }
       else {
         p.armed = true; text = "hit the bull, now a KILLER"; tag = "KILLER"; cls = "hit";
         const others = state.players.filter(q => q !== p && q.letters > 0).sort((a, b) => b.letters - a.letters);
@@ -1973,17 +1979,18 @@
     else if (t === p) {
       const before = p.letters; p.letters = Math.min(6, p.letters + mult);
       const got = p.letters - before;
-      text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}${p.letters >= 6 ? " · back to KILLER" : ""}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
-      tag = got ? (p.letters >= 6 ? "KILLER" : `+${got}`) : "full"; cls = got ? "hit" : "neutral";
+      text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}${p.letters >= 6 && p.armed ? " · back to KILLER" : p.letters >= 6 ? " · full, needs the bull" : ""}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
+      tag = got ? (p.letters >= 6 && p.armed ? "KILLER" : `+${got}`) : "full"; cls = got ? "hit" : "neutral";
       if (got) {
-        if (p.letters >= 6) {
+        if (p.letters >= 6 && p.armed) {
           const others = state.players.filter(q => q !== p && q.letters > 0).sort((a, b) => b.letters - a.letters);
           const victim = others.length ? others[Math.random() < 0.6 ? 0 : Math.floor(Math.random() * others.length)] : null;
           const stir = victim ? [["watch-out", { name: victim.name }], [{ name: victim.name }, "is-looking-nervous"], [{ name: victim.name }, "has-it-coming"], [{ name: victim.name }, "in-your-sights"]][Math.floor(Math.random() * 4)] : [];
           line = [{ name: p.name }, "is-a-killer", "get-killing"].concat(stir);
         } else line = [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
       }
-      if (got && p.letters >= 6) { sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} has the full word back. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600); }
+      if (got && p.letters >= 6 && p.armed) { sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} has the full word back. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600); }
+      else if (got && p.letters >= 6) line = [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters", "hit-the-bull"];
       if (p.bot) state.bullyMood = p.letters >= 6 ? "celebrating" : "waiting";
     } else if (p.letters < 6 || !p.armed) {
       text = `hit ${t.name}'s ${["single", "double", "treble"][mult - 1]}, not a killer`; tag = "no effect"; cls = "neutral"; line = ["no-effect"];
