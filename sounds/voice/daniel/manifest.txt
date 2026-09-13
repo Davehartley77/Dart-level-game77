@@ -498,3 +498,7 @@ no-effect
 last-one-standing
 get-killing
 need-more-letters
+watch-out
+is-looking-nervous
+has-it-coming
+in-your-sights

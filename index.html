@@ -639,7 +639,7 @@
     const p = state.players[state.current];
     if (!p || !p.bot || state.result || state.winner != null || state.dialog || state.screen !== "play") return;
     const token = ++botToken;
-    setTimeout(() => {
+    whenQuiet(() => {
       if (token !== botToken) return;
       const q = state.players[state.current];
       if (!q || !q.bot || state.result || state.winner != null || state.dialog || state.screen !== "play") return;
@@ -654,7 +654,7 @@
     } else {
       const sim = simulateVisit(p.remaining, p.botLevel); state.botDarts = sim.darts.join(" · ");
       if (sim.bust) submitX01("bust");
-      else { submitX01(sim.scored); if (sim.checkout) setTimeout(() => { if (state.result && state.result.checkout && state.players[state.current] === p) finishLeg(sim.dartsUsed); }, 2600); }
+      else { submitX01(sim.scored); if (sim.checkout) whenQuiet(() => { if (state.result && state.result.checkout && state.players[state.current] === p) finishLeg(sim.dartsUsed); }, 2000); }
     }
   }
   function botDartsLine() {
@@ -914,7 +914,7 @@
   function setVoiceControl(on) {
     wantListening = !!on && !!SR;
     set({ listenMode: wantListening, msg: "" });
-    if (wantListening) { audio(); startListening(); say(["voice-control-on"]); } else stopListening();
+    if (wantListening) { audio(); startListening(); say(["voice-control-on"], { interrupt: true }); } else stopListening();
   }
   const WORD_CMDS = [
     [/\b(undo|take that back|go back)\b/, "undo"],
@@ -985,7 +985,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first." };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1062,15 +1062,27 @@
     voiceStatus(`Played the ${BANKS[v]} recordings.`);
     if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
   }
+  function callerBusy() {
+    // a device voice that never reports starting (the Claude app window) is not counted as busy
+    try { return speakingNow || bankPlaying || bankQueue.length > 0 || pendingLines.length > 0 || (canSpeak && state.voice && started && speechSynthesis.speaking); } catch (e) { return false; }
+  }
+  // run fn once the caller has finished talking (after at least minDelay), so no line is cut off
+  function whenQuiet(fn, minDelay, maxWait) {
+    const started = Date.now();
+    const tick = () => { if (!callerBusy() || Date.now() - started > (maxWait || 9000)) fn(); else setTimeout(tick, 200); };
+    setTimeout(tick, minDelay || 0);
+  }
   // The one call the game makes. Tokens: numbers, phrase keys, { name }.
   function say(tokens, opts) {
     tokens = tokens.filter(t => t !== "" && t != null);
     if (!tokens.length || !state.voice) return;
+    opts = Object.assign({ queue: true }, opts || {});
+    if (opts.interrupt) opts.queue = false;
     const text = tokensText(tokens), v = state.callerVoice;
     if (v && v !== "device" && BANKS[v] && location.protocol !== "file:") {
       loadBank(v).then(ok => {
         if (!ok) { speak(text, opts); return; }
-        if (!(opts && opts.queue)) { stopBank(); if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } }
+        if (!opts.queue) { stopBank(); if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } }
         tokens.forEach(t => { if (typeof t === "number" && t > 25) spokenNums.push({ n: t, at: Date.now() + 4000 }); });
         bankQueue.push({ tokens, text, opts }); drainBank(v);
       });
@@ -1427,7 +1439,7 @@
     const cur = state.players[state.current];
     if ((state.listenMode || (cur && cur.bot)) && state.result && !state.result.checkout && state.winner == null) {
       const token = state.result;
-      setTimeout(() => { if (state.result === token && state.screen === "play" && !state.dialog) nextTurn(); }, cur && cur.bot ? 3800 : 3000);
+      whenQuiet(() => { if (state.result === token && state.screen === "play" && !state.dialog) nextTurn(); }, cur && cur.bot ? 3000 : 2500);
     }
     scheduleBot();
     app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
@@ -1601,7 +1613,7 @@
     state.undo = state.undo.slice(0, -1);
     if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
     set({ players: snap.players, current: snap.current, rounds: snap.rounds, round: snap.round, leg: snap.leg, legStarter: snap.legStarter, killer: snap.killer || state.killer, result: null, winner: null, entry: "", msg: `Undone: ${snap.label}. ${state.players[snap.current] ? state.players[snap.current].name : ""} to throw again.` });
-    say(["undone", { name: state.players[state.current].name }, "to-throw-again"]);
+    say(["undone", { name: state.players[state.current].name }, "to-throw-again"], { interrupt: true });
   }
   function undoLink() { return state.undo && state.undo.length ? `<button type="button" class="undo" data-undo="1">Wrong? Undo that</button>` : ""; }
 
@@ -1824,7 +1836,14 @@
       const got = p.letters - before;
       text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}${p.letters >= 6 ? " · back to KILLER" : ""}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
       tag = got ? (p.letters >= 6 ? "KILLER" : `+${got}`) : "full"; cls = got ? "hit" : "neutral";
-      if (got) line = p.letters >= 6 ? [{ name: p.name }, "is-a-killer", "get-killing"] : [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
+      if (got) {
+        if (p.letters >= 6) {
+          const others = state.players.filter(q => q !== p && q.letters > 0).sort((a, b) => b.letters - a.letters);
+          const victim = others.length ? others[Math.random() < 0.6 ? 0 : Math.floor(Math.random() * others.length)] : null;
+          const stir = victim ? [["watch-out", { name: victim.name }], [{ name: victim.name }, "is-looking-nervous"], [{ name: victim.name }, "has-it-coming"], [{ name: victim.name }, "in-your-sights"]][Math.floor(Math.random() * 4)] : [];
+          line = [{ name: p.name }, "is-a-killer", "get-killing"].concat(stir);
+        } else line = [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
+      }
       if (got && p.letters >= 6) { sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} has the full word back. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600); }
       if (p.bot) state.bullyMood = p.letters >= 6 ? "celebrating" : "waiting";
     } else if (p.letters < 6) {
@@ -1870,7 +1889,7 @@
       const idx = state.players.findIndex(q => q.number === num && q.letters > 0);
       state.botDarts = (state.botDarts ? state.botDarts + " · " : "") + d.label;
       submitKillerDart(idx >= 0 ? idx : null, mult);
-      if (state.killer.darts < 3 && !state.result && state.winner == null) setTimeout(throwOne, 1100);
+      if (state.killer.darts < 3 && !state.result && state.winner == null) whenQuiet(throwOne, 900);
     };
     state.botDarts = ""; throwOne();
   }
