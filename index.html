@@ -2,20 +2,20 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
 <style>
   :root {
-    --felt: #0e1a13;
-    --felt-2: #142419;
-    --panel: #1a2c21;
-    --line: #2b4434;
-    --bone: #ede3cb;
-    --bone-2: #d9cdae;
+    --felt: #0f3d2a;
+    --felt-2: #144d35;
+    --panel: #1a5a3f;
+    --line: #2c7a56;
+    --bone: #fff4d6;
+    --bone-2: #f3e5bb;
     --ink: #14110c;
-    --red: #c8322b;
-    --red-2: #e04a42;
-    --green: #237d4f;
-    --green-2: #2f9a63;
-    --brass: #c9a24b;
-    --brass-2: #e3bf66;
-    --muted: #93a596;
+    --red: #e8362c;
+    --red-2: #ff5c4f;
+    --green: #21a55e;
+    --green-2: #35c877;
+    --brass: #f2b83b;
+    --brass-2: #ffd45c;
+    --muted: #b7d3c0;
     --shadow: 0 10px 30px rgba(0,0,0,.45);
     --display: "Bungee", "Impact", "Arial Black", sans-serif;
     --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
@@ -27,8 +27,9 @@
     margin: 0;
     background: var(--felt);
     background-image:
-      radial-gradient(ellipse at 50% -10%, rgba(201,162,75,.16), transparent 60%),
-      repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 6px);
+      radial-gradient(ellipse at 50% -10%, rgba(255,212,92,.28), transparent 55%),
+      radial-gradient(ellipse at 100% 100%, rgba(232,54,44,.18), transparent 50%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 2px, transparent 2px 6px);
     color: var(--bone);
     font-family: var(--body);
     font-size: 16px;
@@ -295,7 +296,7 @@
     { level: 5, min: 101, max: 170, points: 10, penalty: 5, failTo: 4 },
   ];
   const TARGET_OPTIONS = [15, 20, 30, 40, 50, 75];
-  const COLORS = ["#c8322b", "#2f9a63", "#c9a24b", "#3b7dd8", "#a05cc7", "#e0762e"];
+  const COLORS = ["#ff4d3d", "#37d67a", "#ffc93c", "#4da3ff", "#c76dff", "#ff8c2e"];
   const ICONS = ["🎯", "🐂", "🍺", "🔥", "👑", "🎲", "🏹", "⚡"];
 
   function randomTarget(level) {
@@ -348,8 +349,8 @@
   let state = load(KEY) || freshSetup();
 
   function freshSetup() {
-    return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, listening: false, legStarter: 0, leg: 1 };
+    return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listening: false, legStarter: 0, leg: 1 };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -404,23 +405,46 @@
 
   // ---------- the caller (speech synthesis) ----------
   const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-  let voicePick = null;
-  function pickVoice() {
-    if (!canSpeak) return null;
-    const vs = speechSynthesis.getVoices();
-    return vs.find(v => /en-GB/i.test(v.lang) && /Daniel|Google UK English Male|Arthur/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  function voices() {
+    if (!canSpeak) return [];
+    try { return speechSynthesis.getVoices().slice().sort((a, b) => (/^en/i.test(b.lang) - /^en/i.test(a.lang)) || (/en-GB/i.test(b.lang) - /en-GB/i.test(a.lang)) || a.name.localeCompare(b.name)); } catch (e) { return []; }
   }
-  if (canSpeak) { speechSynthesis.onvoiceschanged = () => { voicePick = pickVoice(); }; voicePick = pickVoice(); }
+  function pickVoice() {
+    const vs = voices(); if (!vs.length) return null;
+    if (state.voiceName) { const chosen = vs.find(v => v.name === state.voiceName); if (chosen) return chosen; }
+    return vs.find(v => /en-GB/i.test(v.lang) && /Daniel|Google UK English Male|Arthur|Oliver/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || vs[0];
+  }
+  if (canSpeak) { speechSynthesis.addEventListener("voiceschanged", () => { if (state.screen === "setup") render(); }); }
+  // Phones only allow speech that starts inside a tap, so the first tap anywhere unlocks it.
+  let unlocked = false;
+  function unlockSpeech() {
+    if (unlocked || !canSpeak) return; unlocked = true;
+    try { speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); } catch (e) { /* ignore */ }
+  }
+  document.addEventListener("pointerdown", unlockSpeech, { capture: true });
+  document.addEventListener("keydown", unlockSpeech, { capture: true });
+  // Lines are spoken a moment after cancel() (Chrome drops an utterance spoken in the same instant as a cancel),
+  // and utterances are kept referenced so the browser doesn't garbage-collect them mid-sentence.
+  const keep = []; let pendingLines = [], flushTimer = null;
   function speak(text, opts) {
     if (!canSpeak || !state.voice || !text) return;
-    try {
-      if (!(opts && opts.queue)) speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      if (!voicePick) voicePick = pickVoice();
-      if (voicePick) u.voice = voicePick;
-      u.lang = "en-GB"; u.rate = (opts && opts.rate) || 0.98; u.pitch = 0.9;
-      speechSynthesis.speak(u);
-    } catch (e) { /* no voice available */ }
+    if (!(opts && opts.queue)) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } pendingLines = []; }
+    pendingLines.push(text);
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      const lines = pendingLines; pendingLines = [];
+      const v = pickVoice();
+      lines.forEach(line => {
+        try {
+          const u = new SpeechSynthesisUtterance(line);
+          if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
+          u.rate = 0.98; u.pitch = 0.9; u.volume = 1;
+          keep.push(u); if (keep.length > 24) keep.shift();
+          speechSynthesis.speak(u);
+        } catch (e) { /* no voice available */ }
+      });
+    }, 90);
   }
   function callScore(n) {
     if (n === 180) return "One hundred and eighty!";
@@ -571,6 +595,11 @@
             <input id="customIn" type="number" min="5" max="999" inputmode="numeric" value="${esc(state.customTarget)}" placeholder="e.g. 100">
           </div>
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
+          <div class="sub-h" style="margin-top:18px">After a bull save</div>
+          <div class="opts" style="grid-template-columns:1fr 1fr" role="group" aria-label="After a bull save">
+            <button type="button" class="opt" data-bullkeep="1" aria-pressed="${state.bullKeep}" style="font-size:22px">Same number<small>have another go</small></button>
+            <button type="button" class="opt" data-bullkeep="0" aria-pressed="${!state.bullKeep}" style="font-size:22px">New number<small>fresh checkout</small></button>
+          </div>
         </div>` : `<div class="card">
           <h2>501 settings</h2>
           <div class="sub-h">Start from</div>
@@ -583,6 +612,20 @@
           </div>
           <p class="rules-note">Enter each player's three-dart total. Finish on a double (or the bull). Going below zero, leaving one, or finishing without a double is a bust and the score stays as it was. The starter alternates each leg.</p>
         </div>`}
+
+        <div class="card span2">
+          <h2>Caller</h2>
+          ${canSpeak ? `<div class="field" style="flex-wrap:wrap;align-items:center">
+            <button class="btn-ghost" id="voiceBtn2" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>
+            <select id="voiceSel" aria-label="Voice" style="flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--felt);color:var(--bone);font-size:16px">
+              <option value="">Automatic (British English if available)</option>
+              ${voices().map(v => `<option value="${esc(v.name)}" ${v.name === state.voiceName ? "selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}
+            </select>
+            <button class="btn brass" id="testVoice" type="button" style="padding:10px 16px;font-size:16px">Test voice</button>
+          </div>
+          <p class="rules-note">${voices().length ? `${voices().length} voices on this device. The caller reads out scores, "you require", checkouts and game shot.` : "This browser hasn't offered any voices yet. Press Test voice; some browsers only list voices after the first tap."}</p>`
+          : `<p class="rules-note">This browser can't speak. The caller works in Chrome, Safari and Edge.</p>`}
+        </div>
 
         ${savedGames.length ? `<div class="card span2">
           <h2>Saved games</h2>
@@ -622,6 +665,15 @@
     app.querySelectorAll(".icon-btn").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ draft: { ...d, icon: b.dataset.icon } }); }));
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
+    app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
+    const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
+    const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
+    const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
+      unlockSpeech();
+      if (!state.voice) state.voice = true;
+      speak("Game on. Dave, you require one hundred and seventy. Treble twenty, treble twenty, bull.");
+      if (!voices().length) setTimeout(() => { if (state.screen === "setup") render(); }, 600);
+    });
     app.querySelectorAll("[data-start]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, start: +b.dataset.start } })));
     app.querySelectorAll("[data-legs]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, legs: +b.dataset.legs } })));
     const customIn = el("#customIn");
@@ -733,7 +785,7 @@
             </div>
             <div class="submit-row three">
               <button class="btn" id="hitBtn" type="button">Hit<small>+${L.points} · up a level</small></button>
-              <button class="btn brass" id="bullBtn" type="button">Saved by the Bull<small>no change · stay on level ${p.level}</small></button>
+              <button class="btn brass" id="bullBtn" type="button">Saved by the Bull<small>no change · ${state.bullKeep ? `keep ${p.target}` : "new number"} next turn</small></button>
               <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
             <p class="hint">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.</p>
@@ -757,7 +809,7 @@
   function renderResultBull(r) {
     return `<div class="result ${r.hit ? "hit" : r.saved ? "saved" : "miss"}" role="status"><div>
         <div class="big">${r.hit ? "HIT!" : r.saved ? "SAVED BY THE BULL!" : "MISSED"}</div>
-        <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : r.saved ? `No points lost · stays on level ${r.level}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
+        <div class="detail">${r.hit ? `<b>+${r.delta}</b> points${r.levelUp ? ` · up to level ${r.level}` : " · top level held"}` : r.saved ? `No points lost · stays on level ${r.level} · ${state.bullKeep ? `${r.target} again next turn` : "new checkout next turn"}` : `${r.delta ? `<b>−${r.delta}</b> points` : "no points lost"}${r.levelDown ? ` · back to level ${r.level}` : ""}`}</div>
         <div class="detail" style="font-size:18px;margin-top:-8px">${esc(r.player)} now has ${r.score}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
     </div></div>`;
@@ -866,7 +918,7 @@
     else if (saved) { sfx.hit(); }
     else { delta = L.penalty; p.score = Math.max(0, p.score - delta); p.level = L.failTo; sfx.miss(); }
     const usedTarget = p.target;
-    p.target = randomTarget(p.level);
+    if (!(saved && state.bullKeep)) p.target = randomTarget(p.level);
     const result = { player: p.name, hit, saved, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
     if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); speak(`Game shot! ${p.name} wins with ${p.score} points.`); return; }

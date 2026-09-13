@@ -35,7 +35,8 @@ First player to 50 points wins.
    - a new target is drawn for that level
 5. SAVED BY THE BULL: if the checkout becomes impossible with the darts left (need 45, hit 19 then 5,
    and 21 cannot be taken with one dart), throw the last dart at the bull. Hit it and nothing changes:
-   no points lost, no level lost, same level, a new checkout next turn.
+   no points lost, no level lost, same level. A setting on the start screen chooses whether the
+   player keeps the SAME number next turn (default) or gets a NEW checkout.
 6. The turn passes to the next player.
 
 ## Winning
