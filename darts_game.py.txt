@@ -1,0 +1,60 @@
+import random
+
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.level = 1
+        self.points = 0
+
+    def __str__(self):
+        return f"{self.name}: Level {self.level}, {self.points} points"
+
+class DartsGame:
+    def __init__(self, player_names):
+        self.players = [Player(name) for name in player_names]
+        self.level_targets = {
+            1: lambda: random.choice([i for i in range(2, 41, 2)]),
+            2: lambda: random.randint(41, 60),
+            3: lambda: random.randint(61, 80),
+            4: lambda: random.randint(81, 100),
+            5: lambda: random.randint(101, 170),
+        }
+        self.level_rewards = {1: 3, 2: 4, 3: 5, 4: 7, 5: 10}
+        self.fail_penalties = {2: (1, 2), 3: (2, 3), 4: (3, 4), 5: (4, 5)}
+
+    def play_turn(self, player):
+        level = player.level
+        target = self.level_targets[level]()
+        print(f"{player.name} is on Level {level}, target to checkout: {target}")
+
+        # Simulate whether player hits the target (50/50 chance for simplicity)
+        hit = random.choice([True, False])
+
+        if hit:
+            print(f"{player.name} successfully checked out {target}!")
+            player.points += self.level_rewards[level]
+            if level < 5:
+                player.level += 1
+        else:
+            print(f"{player.name} failed to check out {target}.")
+            if level in self.fail_penalties:
+                back_level, point_threshold = self.fail_penalties[level]
+                if player.points < point_threshold:
+                    player.level = back_level
+                    print(f"{player.name} is sent back to Level {back_level}.")
+
+        print(player)
+
+    def play_game(self):
+        while True:
+            for player in self.players:
+                self.play_turn(player)
+                if player.points >= 50:
+                    print(f"\n{player.name} wins the game with {player.points} points!")
+                    return
+
+# Example usage:
+if __name__ == "__main__":
+    player_names = ["Alice", "Bob", "Charlie"]
+    game = DartsGame(player_names)
+    game.play_game()
