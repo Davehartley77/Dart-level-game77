@@ -210,6 +210,8 @@
   .confetti i { position: absolute; top: -12px; width: 10px; height: 16px; border-radius: 2px; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .9; } }
   .flash { animation: flash .35s ease-out 2; }
+  .live::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--red); margin-right: 8px; vertical-align: middle; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
   @keyframes flash { 0%, 100% { filter: none; } 50% { filter: brightness(1.6); } }
 
   /* players */
@@ -598,7 +600,7 @@
     const done = () => {
       speakingNow = false; lastSpeechEnd = Date.now();
       (line.match(/\d+/g) || []).forEach(n => spokenNums.push({ n: +n, at: lastSpeechEnd }));
-      if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 1200); }
+      if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
     };
     u.onend = () => { done(); voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`); };
     u.onerror = e => {
@@ -634,6 +636,7 @@
   }
   function announceTurn() {
     const p = state.players[state.current]; if (!p) return;
+    if (state.listenMode) { speak(`${p.name}.`, { queue: true }); return; }
     if (state.mode === "bull") {
       speak(`${p.name}. Level ${p.level}. Checkout ${p.target}.`, { queue: true });
     } else {
@@ -676,17 +679,19 @@
     let r;
     try { r = new SR(); } catch (e) { voiceState("Voice control isn't available in this browser."); return; }
     if (speakingNow) return; // the caller is talking; done() restarts us afterwards
-    // One short session at a time, restarted after each result: this works the same in Chrome and Safari,
-    // and every session starts only after the caller has finished, so it never contains the caller's voice.
-    r.lang = "en-GB"; r.continuous = false; r.interimResults = false; r.maxAlternatives = 5;
+    // The mic stays open and shows what it is hearing as you speak. A session only ever starts after the
+    // caller has finished, and is cut the moment the caller starts, so it never contains the caller's voice.
+    r.lang = "en-GB"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
     const startedAt = Date.now();
     r.onresult = e => {
-      if (speakingNow || startedAt < lastSpeechEnd + 300 || Date.now() - lastSpeechEnd < 1200) { voiceState("Ignored: that was the caller."); return; }
+      if (speakingNow || startedAt < lastSpeechEnd + 200 || Date.now() - lastSpeechEnd < 700) { voiceState("Ignored: that was the caller."); return; }
+      let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (!e.results[i].isFinal) continue;
+        if (!e.results[i].isFinal) { interim += e.results[i][0].transcript; continue; }
         const alts = Array.from(e.results[i]).map(a => a.transcript.trim()).filter(Boolean);
         if (alts.length) handleVoice(alts);
       }
+      if (interim.trim()) voiceState(`Hearing: "${interim.trim()}"…`);
     };
     r.onerror = e => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") { wantListening = false; set({ listenMode: false, msg: "The microphone isn't allowed here. Allow the microphone when the browser asks, then turn voice control on again." }); }
@@ -1028,12 +1033,12 @@
     el("#undoBtn").addEventListener("click", undo);
     app.querySelectorAll("[data-undo]").forEach(b => b.addEventListener("click", undo));
     const vc = el("#voiceCtl"); if (vc) vc.addEventListener("click", () => setVoiceControl(!state.listenMode));
-    const vl = el("#voiceLine"); if (vl) vl.textContent = state.listenMode ? (heardText || "Listening…") : "";
+    const vl = el("#voiceLine"); if (vl) { vl.textContent = state.listenMode ? (heardText || "Listening…") : ""; vl.classList.toggle("live", !!state.listenMode); }
     // hands-free: move on by itself a few seconds after a result, unless someone undoes or taps first
     const cur = state.players[state.current];
     if ((state.listenMode || (cur && cur.bot)) && state.result && !state.result.checkout && state.winner == null) {
       const token = state.result;
-      setTimeout(() => { if (state.result === token && state.screen === "play" && !state.dialog) nextTurn(); }, cur && cur.bot ? 3800 : 4500);
+      setTimeout(() => { if (state.result === token && state.screen === "play" && !state.dialog) nextTurn(); }, cur && cur.bot ? 3800 : 3000);
     }
     scheduleBot();
     app.querySelectorAll("[data-leave]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "leave", index: +b.dataset.leave } })));
@@ -1233,7 +1238,8 @@
   const numberWord = n => n === 100 ? "a ton" : n === 140 ? "ton forty" : n === 160 ? "ton sixty" : String(n);
   // The line the caller says after a scoring visit in 501
   function callVisit(scored, p, s) {
-    const tail = ` ${p.name}, you require ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "");
+    // With voice control on the caller only echoes the score it heard; the screen shows the rest.
+    const tail = state.listenMode ? "" : ` ${p.name}, you require ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "");
     if (scored === 180) { big180(p.name); speak(tail, { queue: true }); return; }
     if (scored >= 171) { sfx.crowd(1.6); speak(`${scored}! Wonderful darts!`, { pitch: 1.1, rate: 0.9 }); speak(tail, { queue: true }); return; }
     if (scored >= 140) { sfx.crowd(1.4); speak(`${numberWord(scored)}!`, { pitch: 1.08, rate: 0.9 }); speak(tail, { queue: true }); return; }
@@ -1260,7 +1266,8 @@
     const result = { player: p.name, hit, saved, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
     if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(150); playClip("gameshot").then(pl => { if (!pl) speak(`GAME SHOT! ${p.name} wins with ${p.score} points!`, { pitch: 1.12, rate: 0.85 }); }); return; }
-    if (hit && before === 5) speak(`WHAT A CHECKOUT! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.12, rate: 0.85 });
+    if (state.listenMode && !saved && !(hit && before >= 4)) speak(hit ? "Hit." : "Missed.");
+    else if (hit && before === 5) speak(`WHAT A CHECKOUT! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.12, rate: 0.85 });
     else if (hit && before === 4) speak(`Yes! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.06 });
     else if (hit) speak(`Hit! ${delta} points. ${p.name} has ${p.score}.`);
     else if (saved) playClip("saved").then(pl => { if (!pl) speak(`SAVED BY THE BULL! ${p.name} stays on level ${p.level}.`, { pitch: 1.1, rate: 0.88 }); });
@@ -1297,7 +1304,7 @@
     const s = suggestion(p.remaining);
     const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
     state.rounds.push(r);
-    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) speak(`No score! Bust. ${p.name} still requires ${p.remaining}.`); else speak(`${p.name} still requires ${p.remaining}.`, { queue: true }); }); }
+    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (state.listenMode) { if (!pl) speak("Bust."); } else if (!pl) speak(`No score! Bust. ${p.name} still requires ${p.remaining}.`); else speak(`${p.name} still requires ${p.remaining}.`, { queue: true }); }); }
     else { if (scored >= 100) sfx.hit(); else sfx.tap(); callVisit(scored, p, s); }
     set({ result: r, entry: "", msg: "" });
   }
