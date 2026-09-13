@@ -649,12 +649,14 @@
 
   // ---------- voice entry (speech recognition, where the browser allows it) ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const WORDS = { zero:0, oh:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100 };
+  const WORDS = { zero:0, oh:0, nought:0, one:1, won:1, two:2, to:2, too:2, three:3, free:3, tree:3, four:4, for:4, fore:4, five:5, six:6, sex:6, sick:6, seven:7, eight:8, ate:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fourty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100 };
   function parseSpoken(t) {
     const digits = t.match(/\d+/); if (digits) return parseInt(digits[0], 10);
     const w = t.toLowerCase().replace(/-/g, " ").replace(/[^a-z ]/g, "").split(/\s+/).filter(x => x in WORDS);
     if (!w.length) return null;
     const vals = w.map(x => WORDS[x]);
+    // digit by digit: "one four zero" is 140, "six oh" is 60
+    if (vals.length >= 2 && vals.length <= 3 && vals.every(v => v <= 9)) return parseInt(vals.join(""), 10);
     // "one twenty" / "one eighty" / "one oh five": a lone 1 before a smaller number means one hundred and…
     if (vals[0] === 1 && vals.length >= 2 && vals[1] !== 100) { let rest = 0; for (let i = 1; i < vals.length; i++) rest = rest * (vals[i] === 0 ? 10 : 1) + vals[i]; return 100 + rest; }
     let total = 0, cur = 0;
@@ -748,11 +750,16 @@
     if (state.result) return;
     // then a number: enters straight away in 501
     if (state.mode === "x01") {
-      for (const t of alts) {
-        const n = parseSpoken(t);
-        if (n == null || n < 0 || n > 180) continue;
-        if (callerJustSaid(n)) { voiceState(`Ignored ${n}: the caller just said it. Say it again.`); return; }
-        voiceState(`Heard "${heard}": ${n}`); set({ entry: String(n) }); submitX01(n); return;
+      const p = state.players[state.current];
+      const cands = alts.map(t => ({ t, n: parseSpoken(t) })).filter(c => c.n != null && c.n >= 0 && c.n <= 180 && !IMPOSSIBLE_SCORES.has(c.n));
+      const others = alts.slice(1).filter(Boolean).slice(0, 3).map(a => `"${a}"`).join(", ");
+      if (cands.length) {
+        // prefer a guess that isn't a bust or the caller's own number; otherwise the recogniser's first guess
+        const ok = c => !callerJustSaid(c.n) && !(p && (p.remaining - c.n < 0 || p.remaining - c.n === 1));
+        const pick = cands.find(ok) || cands[0];
+        if (callerJustSaid(pick.n)) { voiceState(`Ignored ${pick.n}: the caller just said it. Say it again.`); return; }
+        voiceState(`Heard "${pick.t}" → ${pick.n}${others ? ` (other guesses: ${others})` : ""}`);
+        set({ entry: String(pick.n) }); submitX01(pick.n); return;
       }
       voiceState(`Heard "${heard}". Say a score, "bust", "next" or "undo".`);
     } else voiceState(`Heard "${heard}". Say "hit", "miss" or "bull".`);
