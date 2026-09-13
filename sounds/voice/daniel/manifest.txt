@@ -11,7 +11,6 @@ game-shot
 has
 hit
 level
-manifest.txt
 minus
 missed
 n-0
@@ -460,7 +459,6 @@ name-wendy
 name-will
 name-william
 name-zoe
-names.txt
 no-points-lost
 no-score-bust
 outer-bull

@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Saved by the Bull">
 <link rel="apple-touch-icon" href="images/icon.png">
+<link rel="manifest" href="manifest.json">
 <title>Saved by the Bull</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Bangers&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
 <link rel="icon" id="favicon" href="images/icon.png">
@@ -1096,6 +1097,53 @@
     } else speak(text, opts);
   }
 
+  // ---------- installable app: service worker, install prompt, offline voice ----------
+  let installPrompt = null, swWaiting = null;
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; if (state.page === "settings") render(); });
+  window.addEventListener("appinstalled", () => { installPrompt = null; if (state.page === "settings") render(); });
+  if ("serviceWorker" in navigator && location.protocol === "https:" || location.hostname === "localhost") {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").then(reg => {
+        const track = w => { if (!w) return; w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) { swWaiting = w; showUpdateBar(); } }); };
+        track(reg.waiting); reg.addEventListener("updatefound", () => track(reg.installing));
+        setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+      }).catch(() => { /* not available here (the claude.ai copy) */ });
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => { if (refreshing) return; refreshing = true; location.reload(); });
+    });
+  }
+  function showUpdateBar() {
+    if (document.getElementById("updateBar")) return;
+    const bar = document.createElement("div"); bar.id = "updateBar";
+    bar.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:#fff4d6;color:#14110c;border:3px solid #f2b83b;border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.45);font-weight:600";
+    bar.innerHTML = `<span>A new version is ready.</span><button class="btn" style="padding:8px 14px;font-size:16px" id="updateNow" type="button">Update</button>`;
+    document.body.appendChild(bar);
+    bar.querySelector("#updateNow").addEventListener("click", () => { if (swWaiting) swWaiting.postMessage("skipWaiting"); bar.remove(); });
+  }
+  // copy the chosen caller's clips onto the phone so the caller works with no signal
+  async function keepVoiceOffline(v, onProgress) {
+    if (!("caches" in window)) throw new Error("This browser can't store files for offline use.");
+    const base = bankBase(v);
+    const [m, n] = await Promise.all([fetch(base + "manifest.txt"), fetch(base + "names.txt")]);
+    if (!m.ok) throw new Error("Couldn't read the voice files.");
+    const keys = (await m.text()).split(/\s+/).filter(Boolean);
+    const urls = keys.map(k => new URL(base + k + ".m4a", location.href).href).concat([new URL(base + "manifest.txt", location.href).href, new URL(base + "names.txt", location.href).href]);
+    const cache = await caches.open("assets-v1");
+    let done = 0;
+    for (let i = 0; i < urls.length; i += 12) {
+      const chunk = urls.slice(i, i + 12);
+      await Promise.all(chunk.map(async u => { if (!(await cache.match(u))) { try { const r = await fetch(u); if (r.ok) await cache.put(u, r); } catch (e) { /* skip */ } } done++; }));
+      onProgress(done, urls.length);
+    }
+    return urls.length;
+  }
+  async function voiceOfflineCount(v) {
+    if (!("caches" in window)) return null;
+    try { const cache = await caches.open("assets-v1"); const keys = await cache.keys(); const base = new URL(bankBase(v), location.href).href; return keys.filter(k => k.url.startsWith(base) && k.url.endsWith(".m4a")).length; } catch (e) { return null; }
+  }
+
   // ---------- dartboard ----------
   function drawBoard(canvas) {
     if (!canvas) return;
@@ -1205,6 +1253,19 @@
         </div>
 
         <div class="card span2">
+          <h2>Install as an app</h2>
+          ${isStandalone() ? `<p class="rules-note">Installed. This is running as an app${"serviceWorker" in navigator ? ", and it works without a signal once the voice has been kept on the phone" : ""}.</p>`
+          : installPrompt ? `<p class="rules-note">Put Saved by the Bull on the home screen with Bully as its icon. It opens full screen and works without a signal.</p><button class="btn brass" id="installBtn" type="button" style="padding:12px 18px;font-size:18px">Install app</button>`
+          : isIOS() ? `<p class="rules-note">On iPhone: tap the <strong>Share</strong> button at the bottom of Safari, then <strong>Add to Home Screen</strong>. It gets Bully as its icon, opens full screen, and works without a signal.</p>`
+          : /claudeusercontent|claude\.ai/i.test(location.hostname) || location.protocol === "file:" ? `<p class="rules-note">Installing works from the website address, not this copy.</p>`
+          : `<p class="rules-note">In Chrome or Edge: open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. In Safari on a Mac: File, then Add to Dock.</p>`}
+          ${("caches" in window) && state.callerVoice !== "device" && !/claudeusercontent|claude\.ai/i.test(location.hostname) && location.protocol !== "file:" ? `
+          <div class="sub-h" style="margin-top:16px">Caller without a signal</div>
+          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 5 MB, once.</p>
+          <div class="field" style="align-items:center"><button class="btn quiet" id="keepVoiceBtn" type="button" style="padding:10px 16px;font-size:16px">Keep ${BANKS[state.callerVoice] || ""} on this phone</button><span id="keepVoiceStatus" class="rules-note" style="margin:0"></span></div>` : ""}
+        </div>
+
+        <div class="card span2">
           <h2>Voice control</h2>
           <p class="rules-note">Turn it on from the microphone button during a game. With it on, say your score and it goes in by itself; "bust", "next" and "undo" work too, and in Saved by the Bull say "hit", "miss" or "bull". The mic pauses while the caller speaks.</p>
         </div>
@@ -1219,6 +1280,12 @@
       </section>`;
     wireCallerControls();
     app.querySelectorAll("[data-bullkeep]").forEach(b => b.addEventListener("click", () => set({ bullKeep: b.dataset.bullkeep === "1" })));
+    const ib = el("#installBtn"); if (ib) ib.addEventListener("click", async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch (e) { /* ignore */ } installPrompt = null; render(); });
+    const kv = el("#keepVoiceBtn"), ks = el("#keepVoiceStatus");
+    if (kv) {
+      voiceOfflineCount(state.callerVoice).then(n => { if (ks && n) ks.textContent = n >= 480 ? "Already on this phone." : `${n} files so far.`; });
+      kv.addEventListener("click", () => { kv.disabled = true; keepVoiceOffline(state.callerVoice, (d, t) => { if (ks) ks.textContent = `${Math.round(d / t * 100)}%…`; }).then(() => { if (ks) ks.textContent = "Done. The caller now works without a signal."; }).catch(err => { if (ks) ks.textContent = err.message; kv.disabled = false; }); });
+    }
     wirePageButtons();
     if (state.dialog) { app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
   }
