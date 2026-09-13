@@ -639,7 +639,7 @@
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting" };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena" };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -798,13 +798,12 @@
   function announceTurn() {
     const p = state.players[state.current]; if (!p) return;
     if (state.mode === "bull") {
-      const route = CHECKOUTS[p.target] ? " " + routeWords(CHECKOUTS[p.target]) + "." : "";
-      speak(`${p.name}. Checkout ${p.target}.${route}`, { queue: true });
+      say([{ name: p.name }, "checkout", p.target].concat(CHECKOUTS[p.target] ? routeTokens(CHECKOUTS[p.target]) : []), { queue: true });
     } else {
       const s = suggestion(p.remaining);
-      let line = `${p.name}.`;
-      if (p.remaining <= 170) { line = `${p.name}, you require ${p.remaining}.`; if (s && s.finish) line += " " + routeWords(s.route) + "."; }
-      speak(line, { queue: true });
+      let line = [{ name: p.name }];
+      if (p.remaining <= 170) { line = [{ name: p.name }, "you-require", p.remaining]; if (s && s.finish) line = line.concat(routeTokens(s.route)); }
+      say(line, { queue: true });
     }
   }
 
@@ -878,7 +877,7 @@
   function setVoiceControl(on) {
     wantListening = !!on && !!SR;
     set({ listenMode: wantListening, msg: "" });
-    if (wantListening) { audio(); startListening(); speak("Voice control on. Say your score."); } else stopListening();
+    if (wantListening) { audio(); startListening(); say(["voice-control-on"]); } else stopListening();
   }
   const WORD_CMDS = [
     [/\b(undo|take that back|go back)\b/, "undo"],
@@ -927,6 +926,104 @@
   }
   function listen() { setVoiceControl(!state.listenMode); }
   window.__sbbHear = alts => handleVoice(Array.isArray(alts) ? alts : [String(alts)]); // for testing without a microphone
+
+
+  // ---------- the recorded caller ----------
+  // Every line the caller can say was recorded once on a Mac (tools/build-voice.sh) as small clips in
+  // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
+  // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
+  const BANKS = { serena: "Serena", daniel: "Daniel" };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on." };
+  const bank = { status: {}, names: {}, manifest: {} };
+  const bankBase = v => `sounds/voice/${v}/`;
+  const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
+  function loadBank(v) {
+    if (bank.status[v]) return bank.status[v];
+    if (location.protocol === "file:" || !BANKS[v]) return (bank.status[v] = Promise.resolve(false));
+    bank.status[v] = Promise.all([fetch(bankBase(v) + "manifest.txt"), fetch(bankBase(v) + "names.txt")]).then(async ([m, n]) => {
+      if (!m.ok) return false;
+      bank.manifest[v] = new Set((await m.text()).split(/\s+/).filter(Boolean));
+      bank.names[v] = new Set(n.ok ? (await n.text()).split(/\s+/).filter(Boolean) : []);
+      return true;
+    }).catch(() => false);
+    return bank.status[v];
+  }
+  function tokenText(t) {
+    if (typeof t === "number") return t === 180 ? "One hundred and eighty!" : t === 0 ? "No score." : String(t) + ".";
+    if (t && t.name) return t.name + ".";
+    return TOKEN_TEXT[t] || String(t);
+  }
+  const tokensText = tokens => tokens.map(tokenText).join(" ");
+  function routeTokens(route) {
+    const out = [];
+    route.split(" ").forEach(t => {
+      if (t === "Bull") out.push("bull"); else if (t === "25") out.push("outer-bull");
+      else if (t[0] === "T") out.push("treble", +t.slice(1)); else if (t[0] === "D") out.push("double", +t.slice(1));
+      else out.push("single", +t);
+    });
+    return out;
+  }
+  let bankAudio = null, bankQueue = [], bankPlaying = false, bankResolve = null, clipTimer = null;
+  function stopBank() {
+    bankQueue = []; clearTimeout(clipTimer);
+    if (bankAudio) { try { bankAudio.onended = null; bankAudio.onerror = null; bankAudio.pause(); } catch (e) { /* ignore */ } bankAudio = null; }
+    if (bankResolve) { const r = bankResolve; bankResolve = null; r(false); }
+  }
+  function playSeq(urls) {
+    return new Promise(resolve => {
+      let i = 0;
+      bankResolve = resolve;
+      const finish = ok => { clearTimeout(clipTimer); bankResolve = null; resolve(ok); };
+      const next = () => {
+        if (bankResolve !== resolve) return; // stopped
+        if (i >= urls.length) return finish(true);
+        const a = new Audio(urls[i++]); bankAudio = a;
+        a.onended = next; a.onerror = () => finish(false);
+        clearTimeout(clipTimer); clipTimer = setTimeout(() => { if (bankAudio === a) { try { a.pause(); } catch (e) { /* ignore */ } next(); } }, 6000); // never hang on a clip
+        a.play().catch(() => finish(false));
+      };
+      next();
+    });
+  }
+  function lineUrls(tokens, v) {
+    const urls = [];
+    for (const t of tokens) {
+      if (t && t.name) { const sl = slugName(t.name); if (bank.names[v].has(sl)) urls.push(bankBase(v) + "name-" + sl + ".m4a"); continue; }
+      const key = typeof t === "number" ? "n-" + t : t;
+      if (!bank.manifest[v].has(key)) return null;
+      urls.push(bankBase(v) + key + ".m4a");
+    }
+    return urls;
+  }
+  async function drainBank(v) {
+    if (bankPlaying) return; bankPlaying = true;
+    speakingNow = true; if (rec) { try { rec.abort(); } catch (e) { /* ignore */ } }
+    voiceStatus(`Playing the ${BANKS[v]} recordings…`);
+    while (bankQueue.length) {
+      const item = bankQueue.shift();
+      const urls = lineUrls(item.tokens, v);
+      if (!urls) { speak(item.text, { queue: true }); continue; } // a phrase that wasn't recorded
+      const ok = await playSeq(urls);
+      if (!ok && !bankQueue.length && bankAudio) { /* interrupted or a clip failed to load */ }
+    }
+    bankAudio = null; bankPlaying = false; speakingNow = false; lastSpeechEnd = Date.now();
+    voiceStatus(`Played the ${BANKS[v]} recordings.`);
+    if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
+  }
+  // The one call the game makes. Tokens: numbers, phrase keys, { name }.
+  function say(tokens, opts) {
+    tokens = tokens.filter(t => t !== "" && t != null);
+    if (!tokens.length || !state.voice) return;
+    const text = tokensText(tokens), v = state.callerVoice;
+    if (v && v !== "device" && BANKS[v] && location.protocol !== "file:") {
+      loadBank(v).then(ok => {
+        if (!ok) { speak(text, opts); return; }
+        if (!(opts && opts.queue)) { stopBank(); if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } }
+        tokens.forEach(t => { if (typeof t === "number" && t > 25) spokenNums.push({ n: t, at: Date.now() + 4000 }); });
+        bankQueue.push({ tokens, text, opts }); drainBank(v);
+      });
+    } else speak(text, opts);
+  }
 
   // ---------- dartboard ----------
   function drawBoard(canvas) {
@@ -1059,9 +1156,16 @@
 
         <div class="card span2">
           <h2>Caller</h2>
+          <div class="sub-h">Caller voice</div>
+          <div class="opts" role="group" aria-label="Caller voice" style="margin-bottom:12px">
+            <button type="button" class="opt" data-caller="serena" aria-pressed="${state.callerVoice === "serena"}" style="font-size:22px">Serena<small>recorded</small></button>
+            <button type="button" class="opt" data-caller="daniel" aria-pressed="${state.callerVoice === "daniel"}" style="font-size:22px">Daniel<small>recorded</small></button>
+            <button type="button" class="opt" data-caller="device" aria-pressed="${state.callerVoice === "device"}" style="font-size:22px">Device<small>this phone's voice</small></button>
+          </div>
+          <p class="rules-note">Serena and Daniel are recordings, so they sound the same on every phone. ${location.protocol === "file:" || /claudeusercontent|claude\.ai/i.test(location.hostname) ? "They play on the website version; here the device voice is used." : "Names not in the recorded set are shown on screen rather than spoken."}</p>
           ${canSpeak ? `<div class="field" style="flex-wrap:wrap;align-items:center">
             <button class="btn-ghost" id="voiceBtn2" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>
-            <select id="voiceSel" aria-label="Voice" style="flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--felt);color:var(--bone);font-size:16px">
+            <select id="voiceSel" aria-label="Voice" ${state.callerVoice === "device" ? "" : "hidden"} style="flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--felt);color:var(--bone);font-size:16px">
               <option value="">Automatic (British English if available)</option>
               ${voices().map(v => `<option value="${esc(v.name)}" ${v.name === state.voiceName ? "selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}
             </select>
@@ -1119,12 +1223,13 @@
       state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
       set({});
     });
-    const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
+    const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) say(["caller-on"]); else { stopBank(); if (canSpeak) speechSynthesis.cancel(); } });
     const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
+    app.querySelectorAll("[data-caller]").forEach(b => b.addEventListener("click", () => { stopBank(); set({ callerVoice: b.dataset.caller, voice: true }); say(["game-on", { name: "Dave" }, "you-require", 141, "treble", 20, "treble", 19, "double", 12]); }));
     const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
       unlockSpeech();
       if (!state.voice) state.voice = true;
-      speak("Game on. Dave, you require one hundred and seventy. Treble twenty, treble twenty, bull.");
+      say(["game-on", { name: "Dave" }, "you-require", 170, "treble", 20, "treble", 20, "bull"]);
       if (!voices().length) setTimeout(() => { if (state.screen === "setup") render(); }, 600);
     });
     app.querySelectorAll("[data-start]").forEach(b => b.addEventListener("click", () => set({ x01: { ...state.x01, start: +b.dataset.start } })));
@@ -1140,14 +1245,14 @@
       audio();
       state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
       set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
-      speak(state.mode === "bull" ? "Game on." : `Game on. ${state.x01.start}.`);
+      say(["game-on"]);
       announceTurn();
     });
     wireCommon();
   }
 
   function wireCommon() {
-    const v = el("#voiceBtn"); if (v) v.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) speak("Caller on."); else if (canSpeak) speechSynthesis.cancel(); });
+    const v = el("#voiceBtn"); if (v) v.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) say(["caller-on"]); else { stopBank(); if (canSpeak) speechSynthesis.cancel(); } });
     if (state.dialog) { if (!el(".dialog")) app.insertAdjacentHTML("beforeend", renderDialog(state.dialog)); wireDialog(); }
   }
 
@@ -1390,7 +1495,7 @@
     state.undo = state.undo.slice(0, -1);
     if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
     set({ players: snap.players, current: snap.current, rounds: snap.rounds, round: snap.round, leg: snap.leg, legStarter: snap.legStarter, result: null, winner: null, entry: "", msg: `Undone: ${snap.label}. ${state.players[snap.current] ? state.players[snap.current].name : ""} to throw again.` });
-    speak(`Undone. ${state.players[state.current].name} to throw again.`);
+    say(["undone", { name: state.players[state.current].name }, "to-throw-again"]);
   }
   function undoLink() { return state.undo && state.undo.length ? `<button type="button" class="undo" data-undo="1">Wrong? Undo that</button>` : ""; }
 
@@ -1410,19 +1515,18 @@
   }
   function big180(name) {
     sfx.crowd(2.6); confetti(120);
-    playClip("180").then(played => { if (!played) speak("ONE HUNDRED AND EIGHTYYYY!", { pitch: 1.15, rate: 0.8 }); });
+    playClip("180").then(played => { if (!played) say([180], { pitch: 1.15, rate: 0.8 }); });
   }
   const numberWord = n => n === 100 ? "a ton" : n === 140 ? "ton forty" : n === 160 ? "ton sixty" : String(n);
   // The line the caller says after a scoring visit in 501
   function callVisit(scored, p, s) {
     // With voice control on the caller only echoes the score it heard; the screen shows the rest.
-    const tail = ""; // the requirement is called at the start of the player's next turn, not after the score
-    if (scored === 180) { big180(p.name); speak(tail, { queue: true }); return; }
-    if (scored >= 171) { sfx.crowd(1.6); speak(`${scored}! Wonderful darts!`, { pitch: 1.1, rate: 0.9 }); speak(tail, { queue: true }); return; }
-    if (scored >= 140) { sfx.crowd(1.4); speak(`${numberWord(scored)}!`, { pitch: 1.08, rate: 0.9 }); speak(tail, { queue: true }); return; }
-    if (scored >= 100) { playClip("ton").then(played => { if (!played) speak(`${numberWord(scored)}!`, { pitch: 1.04 }); speak(tail, { queue: true }); }); return; }
-    if (scored === 26) { speak("Twenty six. Bed and breakfast."); speak(tail, { queue: true }); return; }
-    speak(callScore(scored) + tail);
+    if (scored === 180) { big180(p.name); return; }
+    if (scored >= 171) { sfx.crowd(1.6); say([scored, "wonderful-darts"], { pitch: 1.1, rate: 0.9 }); return; }
+    if (scored >= 140) { sfx.crowd(1.4); say(scored === 140 ? ["ton-forty"] : scored === 160 ? ["ton-sixty"] : [scored], { pitch: 1.08, rate: 0.9 }); return; }
+    if (scored >= 100) { playClip("ton").then(played => { if (!played) say(scored === 100 ? ["a-ton"] : [scored], { pitch: 1.04 }); }); return; }
+    if (scored === 26) { say(["bed-and-breakfast"]); return; }
+    say([scored]);
   }
 
   // ---------- game flow: Saved by the Bull ----------
@@ -1443,13 +1547,13 @@
     if (!(saved && state.bullKeep)) p.target = randomTarget(p.level);
     const result = { player: p.name, hit, saved, delta, level: p.level, fromLevel: before, levelUp: p.level > before, levelDown: p.level < before, score: p.score, target: usedTarget, round: state.round };
     state.rounds.push(result);
-    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(150); playClip("gameshot").then(pl => { if (!pl) speak(`GAME SHOT! ${p.name} wins with ${p.score} points!`, { pitch: 1.12, rate: 0.85 }); }); return; }
-    if (state.listenMode && !saved && !(hit && before >= 4)) speak(hit ? "Hit." : "Missed.");
-    else if (hit && before === 5) speak(`WHAT A CHECKOUT! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.12, rate: 0.85 });
-    else if (hit && before === 4) speak(`Yes! ${usedTarget}! ${delta} points. ${p.name} has ${p.score}.`, { pitch: 1.06 });
-    else if (hit) speak(`Hit! ${delta} points. ${p.name} has ${p.score}.`);
-    else if (saved) playClip("saved").then(pl => { if (!pl) speak(`SAVED BY THE BULL! ${p.name} stays on level ${p.level}.`, { pitch: 1.1, rate: 0.88 }); });
-    else speak(delta ? `Missed. Minus ${delta}. ${p.name} has ${p.score}.` : `Missed. No points lost.`);
+    if (p.score >= state.targetScore) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(150); playClip("gameshot").then(pl => { if (!pl) say(["game-shot", { name: p.name }, "wins", "with", p.score, "points"], { pitch: 1.12, rate: 0.85 }); }); return; }
+    if (state.listenMode && !saved && !(hit && before >= 4)) say(hit ? ["hit"] : ["missed"]);
+    else if (hit && before === 5) say(["what-a-checkout", usedTarget, delta, "points"], { pitch: 1.12, rate: 0.85 });
+    else if (hit && before === 4) say(["yes", usedTarget, delta, "points"], { pitch: 1.06 });
+    else if (hit) say(["hit", delta, "points"]);
+    else if (saved) playClip("saved").then(pl => { if (!pl) say(["saved", { name: p.name }, "stays-on-level", p.level], { pitch: 1.1, rate: 0.88 }); });
+    else say(delta ? ["missed", "minus", delta, "points"] : ["missed", "no-points-lost"]);
     set({ result });
   }
 
@@ -1471,7 +1575,7 @@
         const r = { player: p.name, scored, checkout: true, leg: state.leg };
         sfx.hit(); sfx.crowd(2.4); confetti(scored >= 100 ? 140 : 70);
         const key = scored === 170 ? "bigfish" : "gameshot";
-        playClip(key).then(pl => { if (!pl) speak(scored === 170 ? "THE BIG FISH! ONE HUNDRED AND SEVENTY! GAME SHOT!" : scored >= 100 ? `WHAT A FINISH! ${scored}! GAME SHOT!` : "GAME SHOT!", { pitch: 1.12, rate: 0.85 }); });
+        playClip(key).then(pl => { if (!pl) say(scored === 170 ? ["the-big-fish"] : scored >= 100 ? ["what-a-finish", scored, "game-shot"] : ["game-shot"], { pitch: 1.12, rate: 0.85 }); });
         set({ result: r, entry: "", msg: "" });
         return;
       }
@@ -1484,7 +1588,7 @@
     const s = suggestion(p.remaining);
     const r = { player: p.name, scored: bust ? 0 : scored, bust, remaining: p.remaining, suggest: s ? (s.finish ? routePretty(s.route) : s.route) : "" };
     state.rounds.push(r);
-    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) speak(state.listenMode ? "Bust." : "No score! Bust."); }); }
+    if (bust) { sfx.miss(); playClip("bust").then(pl => { if (!pl) say(state.listenMode ? ["bust"] : ["no-score-bust"]); }); }
     else { if (scored >= 100) sfx.hit(); else sfx.tap(); callVisit(scored, p, s); }
     set({ result: r, entry: "", msg: "" });
   }
@@ -1494,8 +1598,8 @@
     snapshot(`${p.name} won leg ${state.leg}`);
     p.dartsThrown += darts; p.legs++;
     state.rounds.push({ player: p.name, legWon: true, leg: state.leg, darts, scored });
-    if (p.legs >= state.x01.legs) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(160); speak(`GAME, SHOT, AND THE MATCH! ${p.name}!`, { pitch: 1.12, rate: 0.82 }); return; }
-    speak(`${p.name} takes leg ${state.leg}.`, { pitch: 1.05 });
+    if (p.legs >= state.x01.legs) { state.winner = state.current; state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(160); say(["game-shot-match", { name: p.name }], { pitch: 1.12, rate: 0.82 }); return; }
+    say([{ name: p.name }, "takes-leg"], { pitch: 1.05 });
     // next leg: everyone back to the start, the starter alternates
     state.players.forEach(q => { q.remaining = state.x01.start; q.last = null; });
     const starter = (state.legStarter + 1) % state.players.length;
@@ -1527,11 +1631,11 @@
   function playAgain() {
     resetPlayers();
     set({ current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
-    speak("Game on."); announceTurn();
+    say(["game-on"]); announceTurn();
   }
   function resetToSetup() {
     resetPlayers();
-    stopListening(); state.listenMode = false;
+    stopListening(); state.listenMode = false; stopBank();
     if (canSpeak) speechSynthesis.cancel();
     set({ screen: "setup", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [] });
   }
