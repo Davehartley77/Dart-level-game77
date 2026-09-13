@@ -166,6 +166,30 @@
 
   .submit-row { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 420px) { .submit-row { grid-template-columns: 1fr; } }
+  .letters { display: inline-flex; gap: 3px; font-family: var(--num); font-weight: 800; font-size: 22px; letter-spacing: .02em; }
+  .letters span { width: 24px; height: 30px; display: grid; place-items: center; border-radius: 5px; background: var(--red); color: var(--bone); }
+  .letters span.off { background: rgba(0,0,0,.18); color: rgba(0,0,0,.35); }
+  .pcard .letters span { width: 18px; height: 24px; font-size: 16px; }
+  .pcard .letters span.off { background: rgba(255,255,255,.08); color: rgba(255,255,255,.25); }
+  .num-badge { font-family: var(--display); font-size: 30px; color: var(--ink); background: var(--bone); border: 3px solid var(--brass); border-radius: 12px; padding: 4px 12px; line-height: 1; }
+  .pcard .num-badge { font-size: 22px; padding: 3px 9px; }
+  .killer-tag { font-family: var(--num); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--red); }
+  .pcard.out { opacity: .45; }
+  .targets-k { display: grid; gap: 8px; margin-top: 14px; }
+  .target-k { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: rgba(0,0,0,.06); border-radius: 12px; padding: 8px 10px; }
+  .target-k .tn { font-family: var(--display); font-size: 22px; min-width: 44px; text-align: center; }
+  .target-k .tname { font-weight: 700; }
+  .target-k .tsub { font-size: 13px; color: #6b5a2c; }
+  .sdt { display: flex; gap: 6px; }
+  .sdt button { width: 46px; height: 44px; border-radius: 10px; border: 2px solid #b9ad8f; background: #fbf6e8; color: var(--ink); font-family: var(--num); font-weight: 800; font-size: 18px; }
+  .sdt button:hover { border-color: var(--brass); background: #fff; }
+  .sdt button:disabled { opacity: .35; cursor: not-allowed; }
+  .pick-pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+  .pick-pad button { height: 50px; border-radius: 10px; border: 2px solid #b9ad8f; background: #fbf6e8; color: var(--ink); font-family: var(--num); font-weight: 800; font-size: 22px; }
+  .pick-pad button:disabled { opacity: .3; cursor: not-allowed; text-decoration: line-through; }
+  .darts-left { display: flex; gap: 6px; }
+  .darts-left i { width: 14px; height: 14px; border-radius: 50%; background: var(--red); display: inline-block; }
+  .darts-left i.used { background: rgba(0,0,0,.2); }
   .submit-row.three { grid-template-columns: 1fr 1fr 1fr; }
   @media (max-width: 640px) { .submit-row.three { grid-template-columns: 1fr; } }
   .submit-row .btn { padding: 22px 12px; font-size: 26px; }
@@ -617,6 +641,7 @@
   }
   function botTurn(p) {
     state.bullyMood = "throwing";
+    if (state.mode === "killer") { botKillerTurn(p); return; }
     if (state.mode === "bull") {
       const sim = simulateBullTurn(p.target, p.botLevel); state.botDarts = sim.darts.join(" · "); submitBull(sim.outcome);
     } else {
@@ -639,7 +664,7 @@
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena", page: null };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena", page: null, killer: { phase: "pick", darts: 0 } };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -797,6 +822,11 @@
   }
   function announceTurn() {
     const p = state.players[state.current]; if (!p) return;
+    if (state.mode === "killer") {
+      if (state.killer.phase === "pick") say([{ name: p.name }, "throw-one-dart"], { queue: true });
+      else say(p.letters >= 6 ? [{ name: p.name }, "killer"] : [{ name: p.name }, "your-number-is", p.number], { queue: true });
+      return;
+    }
     if (state.mode === "bull") {
       say([{ name: p.name }, "checkout", p.target].concat(CHECKOUTS[p.target] ? routeTokens(CHECKOUTS[p.target]) : []), { queue: true });
     } else {
@@ -908,6 +938,21 @@
       }
     }
     if (state.result) return;
+    if (state.mode === "killer") {
+      const p = state.players[state.current];
+      for (const t of alts) {
+        const low = t.toLowerCase();
+        if (state.killer.phase === "pick") { const n = parseSpoken(t); if (n >= 1 && n <= 20) { voiceState(`Heard "${heard}": ${n}`); pickNumber(n); return; } continue; }
+        if (/\b(miss|missed|nothing)\b/.test(low)) { voiceState(`Heard "${heard}": miss`); submitKillerDart(null, 0); return; }
+        const mult = /\b(treble|triple|three)\b/.test(low) ? 3 : /\b(double|two)\b/.test(low) ? 2 : 1;
+        if (/\b(own|me|mine|myself|my number)\b/.test(low)) { voiceState(`Heard "${heard}": own ×${mult}`); submitKillerDart(state.current, mult); return; }
+        const idx = state.players.findIndex((q, i) => i !== state.current && q.letters > 0 && low.includes(q.name.toLowerCase()));
+        if (idx >= 0) { voiceState(`Heard "${heard}": ${state.players[idx].name} ×${mult}`); submitKillerDart(idx, mult); return; }
+        const n = parseSpoken(t); const byNum = state.players.findIndex(q => q.number === n && q.letters > 0);
+        if (byNum >= 0) { voiceState(`Heard "${heard}": ${n} ×${mult}`); submitKillerDart(byNum, mult); return; }
+      }
+      voiceState(`Heard "${heard}". Say a name or number with single, double or treble, "own", or "miss".`); return;
+    }
     // then a number: enters straight away in 501
     if (state.mode === "x01") {
       const p = state.players[state.current];
@@ -933,7 +978,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on." };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!" };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1092,7 +1137,7 @@
   function render() {
     if (state.page === "settings") renderSettings();
     else if (state.page === "checkouts") renderCheckouts();
-    else if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else renderPlayX01();
+    else if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else if (state.mode === "killer") renderPlayKiller(); else renderPlayX01();
     paintBully();
   }
   function pageButtons() {
@@ -1187,8 +1232,8 @@
   }
 
   function renderSetup() {
-    const bull = state.mode === "bull";
-    meta.innerHTML = (bull ? `<span class="chip">First to <strong>${state.targetScore}</strong></span>` : `<span class="chip"><strong>${state.x01.start}</strong></span><span class="chip">First to <strong>${state.x01.legs}</strong> leg${state.x01.legs > 1 ? "s" : ""}</span>`) + voiceButton() + pageButtons();
+    const bull = state.mode === "bull", killer = state.mode === "killer";
+    meta.innerHTML = (bull ? `<span class="chip">First to <strong>${state.targetScore}</strong></span>` : killer ? `<span class="chip"><strong>KILLER</strong></span>` : `<span class="chip"><strong>${state.x01.start}</strong></span><span class="chip">First to <strong>${state.x01.legs}</strong> leg${state.x01.legs > 1 ? "s" : ""}</span>`) + voiceButton() + pageButtons();
     const d = state.draft;
     app.innerHTML = `
       <section class="setup">
@@ -1196,7 +1241,8 @@
           <h2>Game</h2>
           <div class="modes" role="group" aria-label="Game">
             <button type="button" class="mode" data-mode="bull" aria-pressed="${bull}"><span class="t">Saved by the Bull</span><span class="d">Five levels of random checkouts. Hit to climb, miss to drop. First to the points wins.</span></button>
-            <button type="button" class="mode" data-mode="x01" aria-pressed="${!bull}"><span class="t">501</span><span class="d">The pub classic. Count down from 501, finish on a double, with checkouts suggested along the way.</span></button>
+            <button type="button" class="mode" data-mode="x01" aria-pressed="${state.mode === "x01"}"><span class="t">501</span><span class="d">The pub classic. Count down from 501, finish on a double, with checkouts suggested along the way.</span></button>
+            <button type="button" class="mode" data-mode="killer" aria-pressed="${state.mode === "killer"}"><span class="t">Killer</span><span class="d">Everyone gets a number. Hit other players' numbers to take their letters; hit your own to get them back. Last one standing.</span></button>
           </div>
         </div>
 
@@ -1228,6 +1274,12 @@
             <input id="customIn" type="number" min="5" max="999" inputmode="numeric" value="${esc(state.customTarget)}" placeholder="e.g. 100">
           </div>
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
+        </div>` : killer ? `<div class="card">
+          <h2>How Killer works</h2>
+          <p class="rules-note">Each player throws one dart to get their number; two players can't share one. Everyone starts with the full word KILLER and can kill from the off.</p>
+          <p class="rules-note">Hit another player's number and they lose letters: a single takes one, a double two, a treble three. Lose all six and you're out.</p>
+          <p class="rules-note">Hit your own number to get letters back, single one, double two, treble three, up to six. You can only kill while your word is full. Last player with letters wins.</p>
+          <p class="rules-note">Three darts a turn. Tap the number you hit and single, double or treble, or Miss. Bully can play too.</p>
         </div>` : `<div class="card">
           <h2>501 settings</h2>
           <div class="sub-h">Start from</div>
@@ -1244,7 +1296,7 @@
         ${savedGames.length ? `<div class="card span2">
           <h2>Saved games</h2>
           <ul class="saved">${savedGames.map(g => `<li>
-            <div><div class="title">${esc(g.title)}</div><div class="when">${g.mode === "x01" ? `${g.start}, leg ${g.leg}` : `Saved by the Bull, round ${g.round}, first to ${g.targetScore}`} · saved ${whenText(g.when)}</div></div>
+            <div><div class="title">${esc(g.title)}</div><div class="when">${g.mode === "x01" ? `${g.start}, leg ${g.leg}` : g.mode === "killer" ? `Killer, round ${g.round}` : `Saved by the Bull, round ${g.round}, first to ${g.targetScore}`} · saved ${whenText(g.when)}</div></div>
             <button type="button" class="btn brass" data-resume="${g.id}">Resume</button>
             <button type="button" class="remove" data-delete="${g.id}" aria-label="Delete saved game">✕</button>
           </li>`).join("")}</ul>
@@ -1257,7 +1309,7 @@
         </div>` : ""}
 
         <div class="start-row">
-          <button class="btn" id="startBtn" type="button" ${state.players.length ? "" : "disabled"}>Start game</button>
+          <button class="btn" id="startBtn" type="button" ${state.players.length && !(killer && state.players.length < 2) ? "" : "disabled"}>Start game</button>
         </div>
       </section>`;
 
@@ -1265,7 +1317,7 @@
     const addPlayer = () => {
       const name = nameIn.value.trim(); if (!name) { nameIn.focus(); return; }
       const color = COLORS[state.players.filter(p => !p.bot).length % COLORS.length];
-      state.players.push({ name, color, icon: name.trim().charAt(0).toUpperCase(), score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
+      state.players.push({ name, color, icon: name.trim().charAt(0).toUpperCase(), score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6 });
       const nextColor = COLORS[state.players.length % COLORS.length], nextIcon = ICONS[state.players.length % ICONS.length];
       set({ draft: { name: "", color: nextColor, icon: nextIcon } });
       el("#nameIn").focus();
@@ -1274,6 +1326,7 @@
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(); });
     nameIn.addEventListener("input", () => { d.name = nameIn.value; save(); });
     app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => { d.name = nameIn.value; set({ mode: b.dataset.mode }); }));
+    if (killer) { const hint = document.createElement("p"); hint.className = "rules-note"; hint.textContent = "Killer needs at least two players (Bully counts)."; const roster = el(".roster"); if (roster) roster.after(hint); }
     app.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.players.splice(+b.dataset.remove, 1); set({}); }));
     app.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => set({ targetScore: +b.dataset.target, customTarget: "" })));
     const bl = el("#botLvl");
@@ -1281,17 +1334,17 @@
     el("#addBot").addEventListener("click", () => {
       d.name = nameIn.value;
       state.players = state.players.filter(p => !p.bot);
-      state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null });
+      state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6 });
       set({});
     });
     app.querySelectorAll("[data-resume]").forEach(b => b.addEventListener("click", () => { audio(); resumeGame(+b.dataset.resume); }));
     app.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => set({ dialog: { type: "deleteSaved", id: +b.dataset.delete } })));
     el("#startBtn").addEventListener("click", () => {
       audio();
-      state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
+      resetPlayers();
       set({ screen: "play", current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", legStarter: 0, leg: 1, undo: [], page: null });
       say(["game-on"]);
-      announceTurn();
+      if (state.mode === "killer") say([{ name: state.players[0].name }, "throw-one-dart"], { queue: true }); else announceTurn();
     });
     wireCommon();
     wirePageButtons();
@@ -1349,6 +1402,7 @@
     if (!state.rounds.length) return `<p class="empty">${emptyText}</p>`;
     return `<ul class="history">${[...state.rounds].reverse().map(r => {
       if (r.left) return `<li class="neutral"><span class="who"><b>${esc(r.player)}</b> left the game</span><span class="r">round ${r.round}</span></li>`;
+      if (r.killer) return `<li class="${r.cls}"><span class="who"><b>${esc(r.player)}</b> · ${esc(r.text)}</span><span class="r ${r.cls === "miss" ? "miss" : r.cls === "hit" ? "hit" : ""}">${esc(r.tag)}</span></li>`;
       if (r.legWon) return `<li class="hit"><span class="who"><b>${esc(r.player)}</b> wins leg ${r.leg} on ${r.darts} dart${r.darts > 1 ? "s" : ""}</span><span class="r hit">${r.scored} out</span></li>`;
       if (state.mode === "x01") return `<li class="${r.bust ? "miss" : r.scored >= 100 ? "hit" : "neutral"}"><span class="who"><b>${esc(r.player)}</b> · ${r.bust ? "bust, still needs " + r.remaining : "leaves " + r.remaining}</span><span class="r ${r.bust ? "miss" : r.scored >= 100 ? "hit" : ""}">${r.bust ? "bust" : r.scored}</span></li>`;
       if (r.saved) return `<li class="neutral"><span class="who"><b>${esc(r.player)}</b> · saved by the bull on ${r.target}, level ${r.fromLevel}</span><span class="r">0 → L${r.level}</span></li>`;
@@ -1514,10 +1568,10 @@
 
   function renderWinner() {
     const w = state.players[state.winner];
-    const line = state.mode === "bull" ? `${w.score} points · first to ${state.targetScore}` : (state.x01.legs > 1 ? `${w.legs} leg${w.legs > 1 ? "s" : ""} · first to ${state.x01.legs}` : `${state.x01.start} · ${avg(w)} average`);
+    const line = state.mode === "killer" ? `Last one standing with ${w.letters} letter${w.letters === 1 ? "" : "s"}` : state.mode === "bull" ? `${w.score} points · first to ${state.targetScore}` : (state.x01.legs > 1 ? `${w.legs} leg${w.legs > 1 ? "s" : ""} · first to ${state.x01.legs}` : `${state.x01.start} · ${avg(w)} average`);
     return `<div class="winner" role="dialog" aria-label="Winner"><div class="inner">
         ${avatar(w)}
-        <div class="eyebrow">${state.mode === "bull" ? "Saved by the Bull" : "Game, shot and the match"}</div>
+        <div class="eyebrow">${state.mode === "bull" ? "Saved by the Bull" : state.mode === "killer" ? "Killer" : "Game, shot and the match"}</div>
         <div class="name">${esc(w.name)} wins!</div>
         <div class="pts">${line}</div>
         <div class="actions">
@@ -1531,7 +1585,7 @@
   // ---------- undo ----------
   // A snapshot is taken before every throw is recorded; Undo puts the game back exactly as it was.
   function snapshot(label) {
-    const snap = { label, players: JSON.parse(JSON.stringify(state.players)), current: state.current, rounds: state.rounds.slice(), round: state.round, leg: state.leg, legStarter: state.legStarter };
+    const snap = { label, players: JSON.parse(JSON.stringify(state.players)), current: state.current, rounds: state.rounds.slice(), round: state.round, leg: state.leg, legStarter: state.legStarter, killer: { ...state.killer } };
     state.undo = (state.undo || []).concat([snap]).slice(-30);
   }
   function undo() {
@@ -1539,7 +1593,7 @@
     const snap = state.undo[state.undo.length - 1];
     state.undo = state.undo.slice(0, -1);
     if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
-    set({ players: snap.players, current: snap.current, rounds: snap.rounds, round: snap.round, leg: snap.leg, legStarter: snap.legStarter, result: null, winner: null, entry: "", msg: `Undone: ${snap.label}. ${state.players[snap.current] ? state.players[snap.current].name : ""} to throw again.` });
+    set({ players: snap.players, current: snap.current, rounds: snap.rounds, round: snap.round, leg: snap.leg, legStarter: snap.legStarter, killer: snap.killer || state.killer, result: null, winner: null, entry: "", msg: `Undone: ${snap.label}. ${state.players[snap.current] ? state.players[snap.current].name : ""} to throw again.` });
     say(["undone", { name: state.players[state.current].name }, "to-throw-again"]);
   }
   function undoLink() { return state.undo && state.undo.length ? `<button type="button" class="undo" data-undo="1">Wrong? Undo that</button>` : ""; }
@@ -1652,10 +1706,170 @@
     announceTurn();
   }
 
+
+  // ---------- Killer ----------
+  function lettersHtml(n) { return `<span class="letters" aria-label="${n} of 6 letters">${"KILLER".split("").map((c, i) => `<span class="${i < n ? "" : "off"}">${c}</span>`).join("")}</span>`; }
+  function scoreboardKiller() {
+    return `<div class="players">${state.players.map((q, i) => `
+      <div class="pcard${i === state.current ? " active" : ""}${q.letters <= 0 ? " out" : ""}">
+        ${avatar(q)}
+        <div><div class="pname">${esc(q.name)}${q.bot ? ` <span class="lvl">bot ${q.botLevel}</span>` : ""} ${q.letters >= 6 ? `<span class="killer-tag">Killer</span>` : q.letters <= 0 ? `<span class="killer-tag" style="color:var(--muted)">Out</span>` : ""}</div><div class="sub">${lettersHtml(q.letters)}</div></div>
+        <div class="score">${q.number ? `<span class="num-badge">${q.number}</span>` : `<span class="lvl">no number yet</span>`}</div>
+        ${state.players.length > 1 && q.letters > 0 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
+      </div>`).join("")}</div>`;
+  }
+  function renderPlayKiller() {
+    const p = state.players[state.current];
+    const k = state.killer;
+    playMeta(`<span class="chip"><strong>KILLER</strong></span><span class="chip">Round <strong>${state.round}</strong></span>`);
+    const taken = new Set(state.players.map(q => q.number).filter(Boolean));
+    let body;
+    if (k.phase === "pick") {
+      body = `
+        <div class="req"><div><div class="label">Throw one dart</div><div class="n" style="font-size:clamp(28px,6vw,44px)">${esc(p.name)}'s number</div></div></div>
+        <p class="hint" style="text-align:left;margin-top:6px">${p.bot ? "Bully is picking…" : "Throw one dart at the board. Tap the number it landed in. A number someone already has means throw again."}</p>
+        <div class="pick-pad">${Array.from({ length: 20 }, (_, i) => i + 1).map(n => `<button type="button" data-pick="${n}" ${taken.has(n) || p.bot ? "disabled" : ""}>${n}</button>`).join("")}</div>
+        <div class="submit-row" style="grid-template-columns:1fr"><button class="btn quiet" id="pickMiss" type="button" ${p.bot ? "disabled" : ""}>Missed the board, throw again</button></div>`;
+    } else {
+      const isKiller = p.letters >= 6;
+      const others = state.players.map((q, i) => ({ q, i })).filter(({ q, i }) => i !== state.current && q.letters > 0);
+      body = `
+        <div class="req">
+          <div><div class="label">${isKiller ? "You are a killer" : "Hit your own number to get letters back"}</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="num-badge">${p.number}</span>${lettersHtml(p.letters)}</div></div>
+          <div class="darts-left" aria-label="Darts left">${[0,1,2].map(i => `<i class="${i < k.darts ? "used" : ""}"></i>`).join("")}</div>
+        </div>
+        <div class="targets-k">
+          <div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">${p.letters >= 6 ? "already full" : "single +1, double +2, treble +3"}</div></div>
+            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>
+          ${others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${isKiller ? `${q.letters} letter${q.letters === 1 ? "" : "s"} left` : "no effect, you're not a killer"}</div></div>
+            <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")}
+        </div>
+        <div class="submit-row" style="grid-template-columns:1fr 1fr"><button class="btn red" id="kMiss" type="button" ${p.bot ? "disabled" : ""}>Miss<small>nothing hit</small></button><button class="btn quiet" id="kEnd" type="button" ${p.bot ? "disabled" : ""}>End turn<small>${3 - k.darts} dart${3 - k.darts === 1 ? "" : "s"} left</small></button></div>
+        <p class="hint">Tap the number you hit, then S, D or T. Keyboard: a name's first letter isn't needed, just use the buttons. Voice: "Sue double", "own treble", "miss".</p>`;
+    }
+    app.innerHTML = `
+      <section class="play">
+        <div>
+          <div class="turn">
+            <div class="turn-head">
+              <div class="who">${avatar(p)}<div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div></div>
+              ${k.phase === "play" ? `<div class="level-pill">${p.letters >= 6 ? "Killer" : p.letters + " of 6"}</div>` : `<div class="level-pill">Numbers</div>`}
+            </div>
+            ${body}
+            <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
+            ${state.result ? renderResultKiller(state.result) : ""}
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Players</h2>${scoreboardKiller()}
+          <h2>This game</h2>${historyList(k.phase === "pick" ? "Numbers first. Then the killing starts." : `No darts yet. ${esc(p.name)} throws first.`)}
+        </aside>
+      </section>
+      ${state.winner != null ? renderWinner() : ""}
+      ${state.dialog ? renderDialog(state.dialog) : ""}`;
+    app.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => pickNumber(+b.dataset.pick)));
+    const pm = el("#pickMiss"); if (pm) pm.addEventListener("click", () => { say(["miss", { name: p.name }, "throw-one-dart"]); voiceState("Throw again."); });
+    app.querySelectorAll("[data-kt]").forEach(b => b.addEventListener("click", () => submitKillerDart(+b.dataset.kt, +b.dataset.m)));
+    const km = el("#kMiss"); if (km) km.addEventListener("click", () => submitKillerDart(null, 0));
+    const ke = el("#kEnd"); if (ke) ke.addEventListener("click", () => endKillerTurn());
+    wirePlay();
+  }
+  function renderResultKiller(r) {
+    return `<div class="result ${r.cls === "miss" ? "miss" : r.cls === "hit" ? "hit" : "neutral"}" role="status"><div>
+        ${botDartsLine()}
+        <div class="big">${esc(r.big)}</div>
+        <div class="detail">${esc(r.detail)}</div>
+        <button class="btn" id="nextBtn" type="button">Next player</button>
+        ${undoLink()}
+    </div></div>`;
+  }
+  function pickNumber(n) {
+    const p = state.players[state.current];
+    if (state.players.some(q => q.number === n)) { voiceState(`${n} is taken. Throw again.`); return; }
+    snapshot(`${p.name} picked ${n}`);
+    p.number = n;
+    state.rounds.push({ killer: true, player: p.name, text: `number ${n}`, tag: "picked", cls: "neutral" });
+    say([{ name: p.name }, "your-number-is", n]);
+    const remaining = state.players.filter(q => !q.number);
+    if (remaining.length) {
+      const next = state.players.findIndex(q => !q.number);
+      set({ current: next, msg: "" });
+      if (!state.players[next].bot) say([{ name: state.players[next].name }, "throw-one-dart"], { queue: true });
+    } else {
+      state.killer = { phase: "play", darts: 0 };
+      set({ current: 0, round: 1 });
+      say(["game-on"], { queue: true }); announceTurn();
+    }
+  }
+  // one dart: targetIdx is a player index (own number included), mult 1/2/3; null = miss
+  function submitKillerDart(targetIdx, mult) {
+    if (state.result || state.dialog || state.winner != null || state.killer.phase !== "play") return;
+    const p = state.players[state.current];
+    const t = targetIdx == null ? null : state.players[targetIdx];
+    snapshot(`${p.name}'s dart ${state.killer.darts + 1}`);
+    state.killer.darts++;
+    let text, tag, cls = "neutral", line = null;
+    if (!t) { text = "missed"; tag = "miss"; cls = "miss"; }
+    else if (t === p) {
+      const before = p.letters; p.letters = Math.min(6, p.letters + mult);
+      const got = p.letters - before;
+      text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
+      tag = got ? `+${got}` : "full"; cls = got ? "hit" : "neutral";
+      if (got) line = p.letters >= 6 ? [{ name: p.name }, "is-a-killer"] : [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
+      if (p.bot) state.bullyMood = p.letters >= 6 ? "celebrating" : "waiting";
+    } else if (p.letters < 6) {
+      text = `hit ${t.name}'s ${["single", "double", "treble"][mult - 1]}, not a killer`; tag = "no effect"; cls = "neutral"; line = ["no-effect"];
+    } else {
+      const before = t.letters; t.letters = Math.max(0, t.letters - mult);
+      const lost = before - t.letters;
+      text = `${["single", "double", "treble"][mult - 1]} ${t.number}: ${t.name} loses ${lost}${t.letters <= 0 ? ", OUT" : ""}`; tag = `−${lost}`; cls = "hit";
+      line = t.letters <= 0 ? [{ name: t.name }, "is-out"] : [{ name: t.name }, "loses", lost, lost === 1 ? "letter" : "letters"];
+      if (t.bot) state.bullyMood = t.letters <= 0 ? "sulking" : "wince";
+      if (p.bot) state.bullyMood = "celebrating";
+    }
+    state.rounds.push({ killer: true, player: p.name, text, tag, cls });
+    if (line) say(line); else if (!t) sfx.miss();
+    if (cls === "hit") sfx.hit();
+    const alive = state.players.filter(q => q.letters > 0);
+    if (alive.length === 1 && state.players.length > 1) {
+      state.winner = state.players.indexOf(alive[0]); state.result = null; set({}); setTimeout(sfx.win, 150); sfx.crowd(3); confetti(150);
+      say(["last-one-standing", { name: alive[0].name }, "wins"], { queue: true }); return;
+    }
+    if (state.killer.darts >= 3) endKillerTurn(); else set({});
+  }
+  function endKillerTurn() {
+    const p = state.players[state.current];
+    const mine = state.rounds.slice(-state.killer.darts).filter(r => r.killer && r.player === p.name);
+    const summary = mine.map(r => r.tag).join(" · ") || "no darts";
+    set({ result: { killer: true, big: p.letters >= 6 ? "KILLER" : p.letters > 0 ? `${p.letters} of 6` : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
+  }
+  function botKillerTurn(p) {
+    const skill = botSkill(p.botLevel);
+    if (state.killer.phase === "pick") {
+      const free = Array.from({ length: 20 }, (_, i) => i + 1).filter(n => !state.players.some(q => q.number === n));
+      pickNumber(free[Math.floor(Math.random() * free.length)]); return;
+    }
+    const throwOne = () => {
+      if (state.result || state.winner != null || state.players[state.current] !== p || state.killer.darts >= 3) return;
+      let aimNum;
+      if (p.letters >= 6) { const others = state.players.filter(q => q !== p && q.letters > 0); others.sort((a, b) => b.letters - a.letters); aimNum = others.length ? others[0].number : p.number; }
+      else aimNum = p.number;
+      const d = throwDart({ kind: "T", n: aimNum }, skill);
+      const num = d.label === "Bull" || d.label === "25" ? null : parseInt(d.label.replace(/[TD]/, ""), 10);
+      const mult = d.label[0] === "T" ? 3 : d.label[0] === "D" ? 2 : 1;
+      const idx = state.players.findIndex(q => q.number === num && q.letters > 0);
+      state.botDarts = (state.botDarts ? state.botDarts + " · " : "") + d.label;
+      submitKillerDart(idx >= 0 ? idx : null, mult);
+      if (state.killer.darts < 3 && !state.result && state.winner == null) setTimeout(throwOne, 1100);
+    };
+    state.botDarts = ""; throwOne();
+  }
+
   // ---------- shared flow ----------
   function nextTurn() {
     if (state.winner != null) return;
-    const next = (state.current + 1) % state.players.length;
+    let next = (state.current + 1) % state.players.length;
+    if (state.mode === "killer") { let guard = 0; while (state.players[next].letters <= 0 && guard++ < state.players.length) next = (next + 1) % state.players.length; state.killer.darts = 0; }
     set({ current: next, result: null, entry: "", msg: "", botDarts: "", round: next === 0 ? state.round + 1 : state.round });
     announceTurn();
   }
@@ -1671,7 +1885,8 @@
     set({ current, legStarter: starter, result: index === state.current ? null : state.result, dialog: null, entry: "", msg: "" });
   }
   function resetPlayers() {
-    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; });
+    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; p.number = null; p.letters = 6; });
+    state.killer = { phase: "pick", darts: 0 };
   }
   function playAgain() {
     resetPlayers();

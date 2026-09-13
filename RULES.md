@@ -66,3 +66,11 @@ to stop and the highest score won. The June 2025 rules above replaced it.
   When it isn't, the game suggests what to score to leave a good finish, e.g. "Score 180 to leave 141".
 - On a checkout the player says how many darts it took, for the three-dart average.
 - The caller voice (browser speech) announces scores, "you require", and the suggested checkout. Toggle it in the header.
+
+# Killer (added 2026-09-13)
+
+- Each player throws one dart to get their number (1–20). Two players can't share a number; throw again.
+- Everyone starts with the full word KILLER and can kill from the off.
+- Hit another player's number and they lose letters: single 1, double 2, treble 3. Lose all six and you are out.
+- Hit your own number to get letters back: single 1, double 2, treble 3, up to six. You can only kill while your word is full.
+- Three darts a turn. Last player with letters wins. Bully can play.

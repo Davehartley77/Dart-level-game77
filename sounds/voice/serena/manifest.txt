@@ -484,3 +484,15 @@ with
 wonderful-darts
 yes
 you-require
+killer
+is-a-killer
+loses
+letter
+letters
+is-out
+gets-back
+your-number-is
+throw-one-dart
+miss
+no-effect
+last-one-standing
