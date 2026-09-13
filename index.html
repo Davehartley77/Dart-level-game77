@@ -64,8 +64,8 @@
   .bully-mark svg { width: 100%; height: auto; display: block; }
   @media (max-width: 520px) { .bully-mark { width: 60px; } }
   /* Bully as a big faint watermark in the corner */
-  #bullyWatermark { position: fixed; left: 50%; transform: translateX(-50%); bottom: -84vmin; width: 160vmin; opacity: .92; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
-  @media (min-aspect-ratio: 1/1) { #bullyWatermark { left: auto; right: 0; transform: none; bottom: -70vmin; width: 130vmin; } }
+  #bullyWatermark { position: fixed; left: 50%; transform: translateX(-50%); bottom: -112vmin; width: 210vmin; opacity: .92; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
+  @media (min-aspect-ratio: 1/1) { #bullyWatermark { left: auto; right: -6vw; transform: none; bottom: -92vmin; width: 170vmin; } }
   /* cards get a little more body so they read over a full-colour Bully */
   .card, .pcard { background: rgba(26,90,63,.94); }
   .turn { box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
@@ -1765,7 +1765,7 @@
             </div>
             ${body}
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
-            ${state.result ? renderResultKiller(state.result) : ""}
+            ${state.result ? renderResultKiller(state.result) : state.notice ? `<div class="result saved" role="status"><div><div class="big">${esc(state.notice.big)}</div><div class="detail">${esc(state.notice.detail)}</div><button class="btn" id="noticeOk" type="button">Carry on</button></div></div>` : ""}
           </div>
         </div>
         <aside class="side">
@@ -1780,6 +1780,7 @@
     app.querySelectorAll("[data-kt]").forEach(b => b.addEventListener("click", () => submitKillerDart(+b.dataset.kt, +b.dataset.m)));
     const km = el("#kMiss"); if (km) km.addEventListener("click", () => submitKillerDart(null, 0));
     const ke = el("#kEnd"); if (ke) ke.addEventListener("click", () => endKillerTurn());
+    const no = el("#noticeOk"); if (no) no.addEventListener("click", () => set({ notice: null }));
     wirePlay();
   }
   function renderResultKiller(r) {
@@ -1821,9 +1822,10 @@
     else if (t === p) {
       const before = p.letters; p.letters = Math.min(6, p.letters + mult);
       const got = p.letters - before;
-      text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
-      tag = got ? `+${got}` : "full"; cls = got ? "hit" : "neutral";
-      if (got) line = p.letters >= 6 ? [{ name: p.name }, "is-a-killer"] : [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
+      text = got ? `own ${["single", "double", "treble"][mult - 1]}, +${got} letter${got === 1 ? "" : "s"}${p.letters >= 6 ? " · back to KILLER" : ""}` : `own ${["single", "double", "treble"][mult - 1]}, already full`;
+      tag = got ? (p.letters >= 6 ? "KILLER" : `+${got}`) : "full"; cls = got ? "hit" : "neutral";
+      if (got) line = p.letters >= 6 ? [{ name: p.name }, "is-a-killer", "get-killing"] : [{ name: p.name }, "gets-back", got, got === 1 ? "letter" : "letters"];
+      if (got && p.letters >= 6) { sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} has the full word back. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600); }
       if (p.bot) state.bullyMood = p.letters >= 6 ? "celebrating" : "waiting";
     } else if (p.letters < 6) {
       text = `hit ${t.name}'s ${["single", "double", "treble"][mult - 1]}, not a killer`; tag = "no effect"; cls = "neutral"; line = ["no-effect"];
@@ -1877,7 +1879,7 @@
   function nextTurn() {
     if (state.winner != null) return;
     let next = (state.current + 1) % state.players.length;
-    if (state.mode === "killer") { let guard = 0; while (state.players[next].letters <= 0 && guard++ < state.players.length) next = (next + 1) % state.players.length; state.killer.darts = 0; }
+    if (state.mode === "killer") { let guard = 0; while (state.players[next].letters <= 0 && guard++ < state.players.length) next = (next + 1) % state.players.length; state.killer.darts = 0; state.notice = null; }
     set({ current: next, result: null, entry: "", msg: "", botDarts: "", round: next === 0 ? state.round + 1 : state.round });
     announceTurn();
   }
