@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Saved by the Bull">
 <link rel="apple-touch-icon" href="images/icon.png">
 <title>Saved by the Bull</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Bangers&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
 <link rel="icon" id="favicon" href="images/icon.png">
 <style>
   :root {
@@ -56,13 +56,16 @@
   .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
 
   /* ---------- header ---------- */
-  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 6px 0 18px; border-bottom: 2px solid var(--brass); margin-bottom: 20px; }
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 6px 0 12px; border-bottom: 2px solid var(--brass); margin-bottom: 20px; }
   .brand { display: flex; align-items: center; gap: 14px; }
-  .brand h1 { font-family: var(--display); font-size: clamp(22px, 4vw, 38px); margin: 0; letter-spacing: .02em; color: var(--bone); text-shadow: 0 3px 0 rgba(0,0,0,.5); line-height: 1; }
-  .brand h1 span { color: var(--red-2); }
-  .bully-mark { width: 84px; flex: none; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+  .brand h1 { font-family: "Bangers", var(--display); font-size: clamp(34px, 7vw, 64px); margin: 0; letter-spacing: .04em; color: var(--bone); line-height: .95; transform: skewX(-7deg) rotate(-2deg); transform-origin: left bottom;
+    text-shadow: 2px 2px 0 var(--ink), 4px 4px 0 var(--ink), 6px 6px 0 rgba(0,0,0,.35); -webkit-text-stroke: 1px rgba(0,0,0,.35); }
+  .brand h1 span { color: var(--brass-2); display: inline-block; transform: rotate(3deg) translateY(2px); }
+  .brand h1 em { font-style: normal; color: var(--red-2); }
+  .bully-mark { width: 150px; flex: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.55)); margin: -10px 0 -18px; }
   .bully-mark svg { width: 100%; height: auto; display: block; }
-  @media (max-width: 520px) { .bully-mark { width: 60px; } }
+  @media (max-width: 520px) { .bully-mark { width: 104px; margin: -6px 0 -12px; } }
+  .brand { align-items: flex-end; }
   /* Bully as a big faint watermark in the corner */
   #bullyWatermark { position: fixed; left: 50%; transform: translateX(-50%); bottom: -112vmin; width: 210vmin; opacity: .92; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 40px rgba(0,0,0,.5)); }
   @media (min-aspect-ratio: 1/1) { #bullyWatermark { left: auto; right: -6vw; transform: none; bottom: -92vmin; width: 170vmin; } }
@@ -77,12 +80,16 @@
   .bully-pose svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
   .bully-mark.loaded { display: block; }
   .avatar img, .who .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
-  .meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .chip { font-family: var(--num); font-weight: 700; font-size: 15px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--felt-2); color: var(--bone-2); }
-  .chip strong { color: var(--brass-2); font-size: 18px; margin-left: 4px; }
-  .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--bone-2); padding: 8px 14px; border-radius: 8px; font-weight: 600; }
-  .btn-ghost:hover { border-color: var(--brass); color: var(--brass-2); }
-  .btn-ghost[aria-pressed="true"] { border-color: var(--brass); color: var(--brass-2); background: rgba(201,162,75,.12); }
+  .meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: 100%; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+  .chip, .btn-ghost { height: 36px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; font-family: var(--num); font-weight: 700; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; padding: 0 12px; white-space: nowrap; }
+  .chip { border: 1px solid transparent; background: rgba(0,0,0,.25); color: var(--bone-2); }
+  .chip strong { color: var(--brass-2); font-size: 17px; }
+  .chip + .btn-ghost { margin-left: auto; }
+  .btn-ghost { background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--bone); cursor: pointer; }
+  .btn-ghost:hover { border-color: var(--brass); color: var(--brass-2); background: rgba(242,184,59,.08); }
+  .btn-ghost[aria-pressed="true"] { border-color: var(--brass); color: var(--brass-2); background: rgba(242,184,59,.14); }
+  .btn-ghost:disabled { opacity: .4; cursor: not-allowed; }
+  @media (max-width: 520px) { .chip, .btn-ghost { height: 34px; font-size: 13px; padding: 0 10px; } .chip + .btn-ghost { margin-left: 0; } }
 
   /* ---------- buttons ---------- */
   .btn { border: none; border-radius: 10px; padding: 14px 22px; font-family: var(--num); font-weight: 800; font-size: 20px; letter-spacing: .06em; text-transform: uppercase; color: var(--bone); background: var(--green); box-shadow: 0 4px 0 #14502f, var(--shadow); transition: transform .08s, box-shadow .08s; }
@@ -343,7 +350,7 @@
   <header class="masthead">
     <div class="brand">
       <div class="bully-mark" id="bullyMark" aria-hidden="true"></div>
-      <h1>Saved by <span>the Bull</span></h1>
+      <h1>Saved by <span>the</span> <em>Bull</em></h1>
     </div>
     <div class="meta" id="meta"></div>
   </header>
@@ -1132,7 +1139,7 @@
   }
   function paintBully() {
     const mood = state.bullyMood || "waiting";
-    const m = document.getElementById("bullyMark"); if (m && !m.dataset.done) { m.innerHTML = Bully.figure("waiting", 84); m.dataset.done = "1"; }
+    const m = document.getElementById("bullyMark"); if (m && !m.dataset.done) { m.innerHTML = Bully.figure("waiting", 150); m.dataset.done = "1"; }
     const w = document.getElementById("bullyWatermark"); if (w && !w.dataset.done) { w.innerHTML = Bully.figure("waiting", 600); w.dataset.done = "1"; }
     const f = document.getElementById("favicon"); if (f && !f.dataset.done) { try { f.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(Bully.face("waiting", 64).replace("<svg ", '<svg style="background:#fff4d6" ')); f.dataset.done = "1"; } catch (e) { /* keep the png */ } }
   }
@@ -1148,7 +1155,7 @@
     return `<div class="chart">${Object.keys(CHECKOUTS).map(Number).sort((a, b) => b - a).map(n => `<div><b>${n}</b><span>${routePretty(CHECKOUTS[n])}</span></div>`).join("")}</div>`;
   }
   function voiceButton() {
-    return canSpeak ? `<button class="btn-ghost" id="voiceBtn" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>` : "";
+    return canSpeak ? `<button class="btn-ghost" id="voiceBtn" type="button" aria-pressed="${state.voice}" title="Caller on or off">${state.voice ? "🔊 Caller" : "🔇 Caller"}</button>` : "";
   }
   function avg(p) { return p.dartsThrown ? ((p.pointsScored / p.dartsThrown) * 3).toFixed(1) : "–"; }
 
@@ -1160,7 +1167,7 @@
     paintBully();
   }
   function pageButtons() {
-    return `<button class="btn-ghost" id="checkoutsBtn" type="button">📋 Checkouts</button><button class="btn-ghost" id="settingsBtn" type="button">⚙ Settings</button>`;
+    return `<button class="btn-ghost" id="checkoutsBtn" type="button">Checkouts</button><button class="btn-ghost" id="settingsBtn" type="button">Settings</button>`;
   }
   function wirePageButtons() {
     const c = el("#checkoutsBtn"); if (c) c.addEventListener("click", () => set({ page: "checkouts" }));
@@ -1168,7 +1175,7 @@
     const b = el("#backBtn"); if (b) b.addEventListener("click", () => set({ page: null }));
   }
   function backBar() {
-    meta.innerHTML = `<button class="btn-ghost" id="backBtn" type="button">← Back to the ${state.screen === "play" ? "game" : "start screen"}</button>`;
+    meta.innerHTML = `<button class="btn-ghost" id="backBtn" type="button" style="margin-left:0">← Back to the ${state.screen === "play" ? "game" : "start screen"}</button>`;
   }
 
   // ----- Settings page -----
@@ -1397,7 +1404,7 @@
   }
 
   function playMeta(chips) {
-    meta.innerHTML = chips + pageButtons() + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice control on" : "🎤 Voice control"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save and close</button><button class="btn-ghost" id="quitBtn" type="button">End game</button>`;
+    meta.innerHTML = chips + pageButtons() + voiceButton() + (SR ? `<button class="btn-ghost" id="voiceCtl" type="button" aria-pressed="${state.listenMode}" title="Say scores instead of typing">${state.listenMode ? "🎤 Voice on" : "🎤 Voice"}</button>` : "") + `<button class="btn-ghost" id="undoBtn" type="button" ${state.undo && state.undo.length ? "" : "disabled"} title="Put the last throw back">↶ Undo</button><button class="btn-ghost" id="saveBtn" type="button">Save</button><button class="btn-ghost" id="quitBtn" type="button">End</button>`;
   }
   function scoreboardBull() {
     return `<div class="players">${[...state.players].map((q, i) => ({ q, i })).sort((a, b) => b.q.score - a.q.score).map(({ q, i }) => `
