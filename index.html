@@ -405,6 +405,8 @@
 
   // ---------- the caller (speech synthesis) ----------
   const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  // The Claude desktop app's built-in browser accepts speech but never plays it.
+  const IN_CLAUDE_APP = /\bClaude\/\d/.test(navigator.userAgent);
   function voices() {
     if (!canSpeak) return [];
     try { return speechSynthesis.getVoices().slice().sort((a, b) => (/^en/i.test(b.lang) - /^en/i.test(a.lang)) || (/en-GB/i.test(b.lang) - /en-GB/i.test(a.lang)) || a.name.localeCompare(b.name)); } catch (e) { return []; }
@@ -425,7 +427,23 @@
   document.addEventListener("keydown", unlockSpeech, { capture: true });
   // Lines are spoken a moment after cancel() (Chrome drops an utterance spoken in the same instant as a cancel),
   // and utterances are kept referenced so the browser doesn't garbage-collect them mid-sentence.
-  const keep = []; let pendingLines = [], flushTimer = null;
+  const keep = []; let pendingLines = [], flushTimer = null, started = false;
+  function voiceStatus(text) {
+    const s = el("#voiceStatus"); if (s) s.textContent = text;
+  }
+  function utter(line, v, retry) {
+    const u = new SpeechSynthesisUtterance(line);
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
+    u.rate = 0.98; u.pitch = 0.9; u.volume = 1;
+    u.onstart = () => { started = true; voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
+    u.onend = () => voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`);
+    u.onerror = e => {
+      if (retry && v && e.error !== "interrupted" && e.error !== "canceled") { voiceStatus(`${v.name} failed (${e.error}), trying the default voice…`); utter(line, null, false); }
+      else if (e.error !== "interrupted" && e.error !== "canceled") voiceStatus(`The browser refused to speak: ${e.error}.`);
+    };
+    keep.push(u); if (keep.length > 24) keep.shift();
+    speechSynthesis.speak(u);
+  }
   function speak(text, opts) {
     if (!canSpeak || !state.voice || !text) return;
     if (!(opts && opts.queue)) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } pendingLines = []; }
@@ -435,15 +453,13 @@
       flushTimer = null;
       const lines = pendingLines; pendingLines = [];
       const v = pickVoice();
-      lines.forEach(line => {
-        try {
-          const u = new SpeechSynthesisUtterance(line);
-          if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
-          u.rate = 0.98; u.pitch = 0.9; u.volume = 1;
-          keep.push(u); if (keep.length > 24) keep.shift();
-          speechSynthesis.speak(u);
-        } catch (e) { /* no voice available */ }
-      });
+      started = false;
+      lines.forEach(line => { try { utter(line, v, true); } catch (e) { voiceStatus("Couldn't start speech: " + (e && e.message ? e.message : e)); } });
+      setTimeout(() => {
+        if (started) return;
+        if (IN_CLAUDE_APP || speechSynthesis.speaking) voiceStatus("Nothing played. This window can't play speech. Open the page in Safari or Chrome and the caller will work.");
+        else voiceStatus(`Nothing played. Voices on this device: ${voices().length}. Try another voice from the list, or a different browser.`);
+      }, 2500);
     }, 90);
   }
   function callScore(n) {
@@ -623,7 +639,9 @@
             </select>
             <button class="btn brass" id="testVoice" type="button" style="padding:10px 16px;font-size:16px">Test voice</button>
           </div>
-          <p class="rules-note">${voices().length ? `${voices().length} voices on this device. The caller reads out scores, "you require", checkouts and game shot.` : "This browser hasn't offered any voices yet. Press Test voice; some browsers only list voices after the first tap."}</p>`
+          ${IN_CLAUDE_APP ? `<p class="rules-note" style="color:var(--red-2);font-weight:600">Speech doesn't play inside the Claude app's own window. Open this page in Safari or Chrome (use the Share button, or copy the link) and the caller will work.</p>` : ""}
+          <p class="rules-note">${voices().length ? `${voices().length} voices on this device. The caller reads out scores, "you require", checkouts and game shot.` : "This browser hasn't offered any voices yet. Press Test voice; some browsers only list voices after the first tap."}</p>
+          <p class="rules-note" id="voiceStatus" style="color:var(--brass-2);min-height:20px"></p>`
           : `<p class="rules-note">This browser can't speak. The caller works in Chrome, Safari and Edge.</p>`}
         </div>
 
