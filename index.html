@@ -609,7 +609,7 @@
     u.onstart = () => { started = true; speakingNow = true; if (rec) { try { rec.abort(); } catch (e2) { /* ignore */ } } voiceStatus(`Speaking with ${v ? v.name : "the default voice"}…`); };
     const done = () => {
       speakingNow = false; lastSpeechEnd = Date.now();
-      (line.match(/\d+/g) || []).forEach(n => spokenNums.push({ n: +n, at: lastSpeechEnd }));
+      (line.match(/\d+/g) || []).map(Number).filter(n => n > 25).forEach(n => spokenNums.push({ n, at: lastSpeechEnd }));
       if (wantListening && !rec) { clearTimeout(restartTimer); restartTimer = setTimeout(startListening, 700); }
     };
     u.onend = () => { done(); voiceStatus(`Spoke OK with ${v ? v.name : "the default voice"}.`); };
@@ -646,13 +646,14 @@
   }
   function announceTurn() {
     const p = state.players[state.current]; if (!p) return;
-    if (state.listenMode) { speak(`${p.name}.`, { queue: true }); return; }
     if (state.mode === "bull") {
-      speak(`${p.name}. Level ${p.level}. Checkout ${p.target}.`, { queue: true });
+      const route = CHECKOUTS[p.target] ? " " + routeWords(CHECKOUTS[p.target]) + "." : "";
+      speak(`${p.name}. Checkout ${p.target}.${route}`, { queue: true });
     } else {
       const s = suggestion(p.remaining);
       let line = `${p.name}, you require ${p.remaining}.`;
       if (s && s.finish) line += " " + routeWords(s.route) + ".";
+      else if (s && !state.listenMode && /^Score/.test(s.route)) line += " " + s.route + ".";
       speak(line, { queue: true });
     }
   }
@@ -1275,7 +1276,9 @@
   // The line the caller says after a scoring visit in 501
   function callVisit(scored, p, s) {
     // With voice control on the caller only echoes the score it heard; the screen shows the rest.
-    const tail = state.listenMode ? "" : ` ${p.name}, you require ${p.remaining}.` + (s && s.finish ? " " + routeWords(s.route) + "." : "");
+    const tail = s && s.finish
+      ? ` ${p.remaining} left: ${routeWords(s.route)}.`
+      : (state.listenMode ? "" : ` ${p.name}, you require ${p.remaining}.`);
     if (scored === 180) { big180(p.name); speak(tail, { queue: true }); return; }
     if (scored >= 171) { sfx.crowd(1.6); speak(`${scored}! Wonderful darts!`, { pitch: 1.1, rate: 0.9 }); speak(tail, { queue: true }); return; }
     if (scored >= 140) { sfx.crowd(1.4); speak(`${numberWord(scored)}!`, { pitch: 1.08, rate: 0.9 }); speak(tail, { queue: true }); return; }
