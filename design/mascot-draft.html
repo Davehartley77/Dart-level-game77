@@ -8,7 +8,13 @@
   h1 { font-family:"Bungee", Impact, sans-serif; font-size:clamp(24px,4vw,36px); margin:0 0 6px; }
   .sub { color:var(--muted); margin:0 0 22px; max-width:60ch; }
   h2 { font-family:"Barlow Condensed", "Arial Narrow", sans-serif; font-weight:800; letter-spacing:.14em; text-transform:uppercase; font-size:15px; color:var(--brass); margin:28px 0 12px; }
-  .poses { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:14px; }
+  .hero { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; display:grid; grid-template-columns:minmax(220px, 360px) 1fr; gap:20px; align-items:center; }
+  @media (max-width: 640px) { .hero { grid-template-columns:1fr; } }
+  .hero svg { width:100%; height:auto; display:block; }
+  .hero .t { font-family:"Bungee", Impact, sans-serif; font-size:clamp(28px,5vw,46px); line-height:1.05; }
+  .hero .t span { color:var(--red); }
+  .hero p { color:var(--muted); margin:10px 0 0; }
+  .poses { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; }
   .pose { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 10px 10px; text-align:center; }
   .pose svg { width:100%; max-width:230px; height:auto; display:block; margin:0 auto; }
   .pose .name { font-family:"Barlow Condensed", sans-serif; font-weight:800; font-size:20px; letter-spacing:.06em; text-transform:uppercase; margin-top:6px; }
@@ -19,9 +25,7 @@
   .small { display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; }
   .small figure { margin:0; text-align:center; color:var(--muted); font-size:13px; }
   .small svg { display:block; margin:0 auto 6px; }
-  .avatar { border-radius:50%; background:var(--bone); overflow:hidden; }
-  .names { display:flex; gap:8px; flex-wrap:wrap; }
-  .names span { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-family:"Barlow Condensed", sans-serif; font-weight:700; font-size:17px; }
+  .avatar { border-radius:50%; background:var(--bone); overflow:hidden; box-shadow:0 0 0 3px var(--brass); }
   .note { color:var(--muted); font-size:14px; max-width:70ch; }
   @keyframes bob { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-6px) } }
   .celebrate svg { animation: bob 1s ease-in-out infinite; }
@@ -29,106 +33,163 @@
 </style>
 
 <div class="wrap">
-  <h1>Bully, second draft</h1>
-  <p class="sub">Bigger and heavier this time: barrel chest, thick neck, short legs, forward horns, red shirt with his name on it. Original drawing, nothing taken from the TV show's artwork.</p>
+  <h1>Bully, third draft</h1>
+  <p class="sub">The polished version: inked outlines, shading on the hide and shirt, hair and stubble, heavy eyelids, a proper dart shirt with a side panel and sponsor patch. Original drawing, nothing taken from the TV show's artwork.</p>
+
+  <div class="hero" id="hero"></div>
 
   <h2>Poses</h2>
   <div class="poses" id="poses"></div>
 
   <h2>At small sizes</h2>
   <div class="small" id="small"></div>
-  <p class="note">The face alone works as the avatar and tab icon; the full figure is for the logo, the result screens and the watermark.</p>
+  <p class="note">The face is the avatar and tab icon; the full figure is the logo, the result screens and the watermark.</p>
 
   <h2>Colours</h2>
   <div class="row" id="swatches"></div>
-
-  <h2>Name</h2>
-  <div class="names"><span>Bully</span></div>
-  <p class="note">On the shirt, and on the scoreboard.</p>
 </div>
 
 <script>
 (function () {
-  const C = { hide:"#4a4a52", hideDark:"#34343b", muzzle:"#b9b9c2", horn:"#f1e4c3", hornDark:"#cbb98f", ring:"#f2b83b", shirt:"#e8362c", shirtDark:"#9e1f18", collar:"#fff4d6", trouser:"#1f2a44", hoof:"#1a1a1f", dart:"#e8362c", flight:"#fff4d6", white:"#ffffff", ink:"#14110c" };
+  const C = { hide:"#4d4d57", hideLight:"#66666f", hideDark:"#2f2f36", muzzle:"#c2c2cb", muzzleDark:"#9a9aa5", horn:"#f3e7c8", hornDark:"#c8b58a", ring:"#f2b83b", ringDark:"#b07f14",
+              shirt:"#e8362c", shirtLight:"#ff5c4f", shirtDark:"#9e1f18", panel:"#14110c", collar:"#fff4d6", trouser:"#1f2a44", trouserDark:"#141c30", hoof:"#1a1a1f", hoofLight:"#3a3a44",
+              dart:"#c9ccd6", dartDark:"#7d818c", flight:"#e8362c", flightLine:"#fff4d6", white:"#ffffff", ink:"#14110c" };
+  let uid = 0;
 
-  // Everything is drawn in a 200 x 240 box. The pose sets the arms, brows, mouth and ears.
-  function head(p) {
-    const browL = p.brows[0], browR = p.brows[1];
+  // ---- reusable pieces ----
+  const outline = (d, fill, extra) => `<path d="${d}" fill="${fill}" stroke="${C.ink}" stroke-width="3" stroke-linejoin="round" ${extra || ""}/>`;
+  const dart = (x, y, rot) => `<g transform="translate(${x} ${y}) rotate(${rot})">
+      <path d="M-26 0 L -36 -9 L -36 9 Z" fill="${C.flight}" stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M-33 -4 L -28 -1 M-33 4 L -28 1" stroke="${C.flightLine}" stroke-width="1.5"/>
+      <rect x="-26" y="-2" width="12" height="4" rx="1" fill="${C.hoofLight}" stroke="${C.ink}" stroke-width="1.5"/>
+      <rect x="-14" y="-3.5" width="24" height="7" rx="3" fill="${C.dart}" stroke="${C.ink}" stroke-width="2"/>
+      <path d="M-10 0 h16" stroke="${C.dartDark}" stroke-width="1.2" stroke-dasharray="2 2"/>
+      <path d="M10 0 L 30 0" stroke="${C.dartDark}" stroke-width="3" stroke-linecap="round"/><path d="M10 0 L 30 0" stroke="${C.dart}" stroke-width="1.5" stroke-linecap="round"/>
+    </g>`;
+  // an arm is a thick inked stroke with a hoof; drawn back-to-front
+  const arm = (d, hoof, rot) => `<path d="${d}" fill="none" stroke="${C.ink}" stroke-width="27" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${C.hide}" stroke-width="22" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${C.hideLight}" stroke-width="6" stroke-linecap="round" opacity=".35" transform="translate(-3 -3)"/>
+      <g transform="translate(${hoof[0]} ${hoof[1]}) rotate(${rot || 0})">
+        <path d="M-13 -9 C -13 -16, 13 -16, 13 -9 L 13 6 C 13 12, -13 12, -13 6 Z" fill="${C.hoof}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M0 -13 L 0 8" stroke="${C.ink}" stroke-width="2"/>
+        <path d="M-9 -11 C -9 -14, -3 -14, -3 -11" stroke="${C.hoofLight}" stroke-width="2" fill="none"/>
+      </g>`;
+
+  const mouths = {
+    flat:  `<path d="M84 124 Q 100 127, 116 124" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>`,
+    smirk: `<path d="M82 125 Q 100 130, 118 120" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>`,
+    grin:  `<path d="M78 119 Q 100 140, 122 119 Z" fill="${C.white}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/><path d="M84 121 L 116 121" stroke="${C.ink}" stroke-width="1.5"/><path d="M92 121 v6 M100 121 v7 M108 121 v6" stroke="${C.ink}" stroke-width="1.2"/>`,
+    frown: `<path d="M84 129 Q 100 119, 116 129" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>`,
+    wince: `<path d="M84 126 Q 92 121, 100 126 Q 108 131, 116 126" fill="none" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>`,
+  };
+
+  function head(p, id) {
+    const [browL, browR] = p.brows;
     return `
-      <!-- horns: thick and forward -->
-      <path d="M58 66 C 28 62, 14 42, 24 18 C 40 30, 50 48, 70 56 Z" fill="${C.horn}" stroke="${C.hornDark}" stroke-width="2.5"/>
-      <path d="M142 66 C 172 62, 186 42, 176 18 C 160 30, 150 48, 130 56 Z" fill="${C.horn}" stroke="${C.hornDark}" stroke-width="2.5"/>
+      <defs>
+        <radialGradient id="hide${id}" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="${C.hideLight}"/><stop offset=".7" stop-color="${C.hide}"/><stop offset="1" stop-color="${C.hideDark}"/></radialGradient>
+        <radialGradient id="muz${id}" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#d5d5dd"/><stop offset="1" stop-color="${C.muzzleDark}"/></radialGradient>
+        <linearGradient id="horn${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8e4"/><stop offset="1" stop-color="${C.hornDark}"/></linearGradient>
+      </defs>
+      <!-- horns -->
+      ${outline("M60 66 C 28 62, 12 42, 22 16 C 40 28, 52 46, 72 54 Z", `url(#horn${id})`)}
+      ${outline("M140 66 C 172 62, 188 42, 178 16 C 160 28, 148 46, 128 54 Z", `url(#horn${id})`)}
+      <path d="M30 26 C 36 34, 44 42, 54 48" stroke="${C.hornDark}" stroke-width="2" fill="none" opacity=".7"/>
+      <path d="M170 26 C 164 34, 156 42, 146 48" stroke="${C.hornDark}" stroke-width="2" fill="none" opacity=".7"/>
       <!-- ears -->
-      <ellipse cx="46" cy="${84 + p.ears}" rx="18" ry="10" fill="${C.hideDark}" transform="rotate(${-20 - p.ears * 3} 46 ${84 + p.ears})"/>
-      <ellipse cx="154" cy="${84 + p.ears}" rx="18" ry="10" fill="${C.hideDark}" transform="rotate(${20 + p.ears * 3} 154 ${84 + p.ears})"/>
-      <!-- head: wide, heavy jaw -->
-      <path d="M52 54 C 52 28, 148 28, 148 54 L 154 100 C 154 128, 134 140, 100 140 C 66 140, 46 128, 46 100 Z" fill="${C.hide}"/>
-      <path d="M66 46 C 82 32, 118 32, 134 46 C 120 42, 80 42, 66 46 Z" fill="${C.hideDark}" opacity=".7"/>
-      <!-- big muzzle -->
-      <ellipse cx="100" cy="114" rx="40" ry="23" fill="${C.muzzle}"/>
-      <ellipse cx="84" cy="111" rx="6" ry="4" fill="${C.hideDark}"/>
-      <ellipse cx="116" cy="111" rx="6" ry="4" fill="${C.hideDark}"/>
-      <!-- nose ring -->
-      <path d="M91 136 A 9 9 0 0 0 109 136" fill="none" stroke="${C.ring}" stroke-width="4" stroke-linecap="round"/>
+      <g transform="rotate(${-22 - p.ears * 3} 46 ${84 + p.ears})">${outline(`M28 ${84 + p.ears} C 28 ${74 + p.ears}, 64 ${74 + p.ears}, 64 ${84 + p.ears} C 64 ${94 + p.ears}, 28 ${94 + p.ears}, 28 ${84 + p.ears} Z`, C.hideDark)}<ellipse cx="48" cy="${84 + p.ears}" rx="9" ry="4" fill="${C.muzzleDark}"/></g>
+      <g transform="rotate(${22 + p.ears * 3} 154 ${84 + p.ears})">${outline(`M136 ${84 + p.ears} C 136 ${74 + p.ears}, 172 ${74 + p.ears}, 172 ${84 + p.ears} C 172 ${94 + p.ears}, 136 ${94 + p.ears}, 136 ${84 + p.ears} Z`, C.hideDark)}<ellipse cx="152" cy="${84 + p.ears}" rx="9" ry="4" fill="${C.muzzleDark}"/></g>
+      <!-- head -->
+      ${outline("M52 56 C 52 26, 148 26, 148 56 L 155 100 C 155 130, 134 142, 100 142 C 66 142, 45 130, 45 100 Z", `url(#hide${id})`)}
+      <!-- fringe of hair between the horns -->
+      <path d="M70 44 C 74 34, 80 32, 84 40 C 88 30, 96 30, 100 38 C 104 30, 112 30, 116 40 C 120 32, 126 34, 130 44" fill="${C.hideDark}" stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M78 40 l 3 -6 M92 36 l 2 -7 M108 36 l -2 -7 M122 40 l -3 -6" stroke="${C.ink}" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- muzzle -->
+      ${outline("M60 112 C 60 92, 140 92, 140 112 C 140 132, 122 140, 100 140 C 78 140, 60 132, 60 112 Z", `url(#muz${id})`)}
+      <ellipse cx="82" cy="110" rx="7" ry="4.5" fill="${C.hideDark}"/><ellipse cx="118" cy="110" rx="7" ry="4.5" fill="${C.hideDark}"/>
+      <!-- stubble -->
+      <g fill="${C.muzzleDark}" opacity=".8"><circle cx="72" cy="122" r="1.2"/><circle cx="78" cy="128" r="1.2"/><circle cx="68" cy="116" r="1.2"/><circle cx="128" cy="122" r="1.2"/><circle cx="122" cy="128" r="1.2"/><circle cx="132" cy="116" r="1.2"/><circle cx="90" cy="133" r="1.2"/><circle cx="110" cy="133" r="1.2"/></g>
       ${p.mouth}
-      <!-- eyes, close-set under a heavy brow -->
-      <ellipse cx="82" cy="82" rx="11" ry="12" fill="${C.white}"/>
-      <ellipse cx="118" cy="82" rx="11" ry="12" fill="${C.white}"/>
-      <circle cx="${84 + p.look}" cy="84" r="5.5" fill="${C.ink}"/>
-      <circle cx="${120 + p.look}" cy="84" r="5.5" fill="${C.ink}"/>
-      <circle cx="${86 + p.look}" cy="82" r="1.8" fill="${C.white}"/>
-      <circle cx="${122 + p.look}" cy="82" r="1.8" fill="${C.white}"/>
-      <path d="${browL}" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/>
-      <path d="${browR}" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/>`;
+      <!-- nose ring -->
+      <path d="M90 136 A 10 10 0 0 0 110 136" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/>
+      <path d="M90 136 A 10 10 0 0 0 110 136" fill="none" stroke="${C.ring}" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M94 141 A 6 6 0 0 0 100 145" fill="none" stroke="#fff3c4" stroke-width="1.2" stroke-linecap="round"/>
+      <!-- eyes with heavy lids -->
+      ${outline("M70 82 C 70 68, 94 68, 94 82 C 94 96, 70 96, 70 82 Z", C.white)}
+      ${outline("M106 82 C 106 68, 130 68, 130 82 C 130 96, 106 96, 106 82 Z", C.white)}
+      <circle cx="${84 + p.look}" cy="84" r="6" fill="${C.ink}"/><circle cx="${118 + p.look}" cy="84" r="6" fill="${C.ink}"/>
+      <circle cx="${86 + p.look}" cy="82" r="2" fill="${C.white}"/><circle cx="${120 + p.look}" cy="82" r="2" fill="${C.white}"/>
+      <path d="M70 ${74 + p.lid} C 76 ${66 + p.lid}, 90 ${66 + p.lid}, 94 ${74 + p.lid} L 94 66 L 70 66 Z" fill="${C.hide}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M106 ${74 + p.lid} C 110 ${66 + p.lid}, 124 ${66 + p.lid}, 130 ${74 + p.lid} L 130 66 L 106 66 Z" fill="${C.hide}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="${browL}" fill="none" stroke="${C.ink}" stroke-width="7" stroke-linecap="round"/>
+      <path d="${browR}" fill="none" stroke="${C.ink}" stroke-width="7" stroke-linecap="round"/>`;
   }
-  function body(p) {
+  function body(p, id) {
     return `
-      <!-- short thick legs -->
-      <rect x="62" y="200" width="30" height="30" rx="7" fill="${C.trouser}"/>
-      <rect x="108" y="200" width="30" height="30" rx="7" fill="${C.trouser}"/>
-      <path d="M56 226 h40 v12 h-40 z" fill="${C.hoof}"/>
-      <path d="M104 226 h40 v12 h-40 z" fill="${C.hoof}"/>
-      <!-- barrel chest and belly -->
-      <path d="M56 142 C 66 132, 134 132, 144 142 C 166 160, 170 190, 160 206 C 130 212, 70 212, 40 206 C 30 190, 34 160, 56 142 Z" fill="${C.shirt}"/>
-      <path d="M56 142 C 34 160, 30 190, 40 206 C 52 208, 66 209, 80 209 C 68 190, 66 166, 74 144 Z" fill="${C.shirtDark}" opacity=".45"/>
-      <path d="M84 140 L 100 156 L 116 140 L 110 134 L 100 144 L 90 134 Z" fill="${C.collar}"/>
-      <text x="100" y="188" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="15" fill="${C.collar}" letter-spacing="1">${p.shirt || ""}</text>
+      <defs>
+        <linearGradient id="shirt${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C.shirtLight}"/><stop offset=".55" stop-color="${C.shirt}"/><stop offset="1" stop-color="${C.shirtDark}"/></linearGradient>
+        <linearGradient id="tr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.trouser}"/><stop offset="1" stop-color="${C.trouserDark}"/></linearGradient>
+      </defs>
+      <!-- legs -->
+      ${outline("M60 198 h34 v32 h-34 z", `url(#tr${id})`)}
+      ${outline("M106 198 h34 v32 h-34 z", `url(#tr${id})`)}
+      <path d="M77 202 v24 M123 202 v24" stroke="${C.trouserDark}" stroke-width="2"/>
+      ${outline("M54 226 h44 c4 0 6 3 6 7 v3 h-54 v-3 c0 -4 2 -7 4 -7 z", C.hoof)}
+      ${outline("M102 226 h44 c2 0 4 3 4 7 v3 h-54 v-3 c0 -4 2 -7 6 -7 z", C.hoof)}
+      <path d="M76 226 v10 M124 226 v10" stroke="${C.ink}" stroke-width="2"/>
+      <!-- torso: barrel chest, belly -->
+      ${outline("M56 142 C 66 134, 134 134, 144 142 C 168 160, 172 190, 160 206 C 130 213, 70 213, 40 206 C 28 190, 32 160, 56 142 Z", `url(#shirt${id})`)}
+      <!-- side panel -->
+      ${outline("M56 142 C 34 160, 30 188, 40 206 C 50 208, 60 209, 70 209 C 62 190, 62 164, 74 146 Z", C.panel)}
+      <path d="M66 156 L 60 200" stroke="${C.ring}" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- collar -->
+      ${outline("M82 138 L 100 158 L 118 138 L 112 132 L 100 146 L 88 132 Z", C.collar)}
+      <path d="M100 158 v16" stroke="${C.shirtDark}" stroke-width="2"/>
+      <circle cx="100" cy="165" r="2" fill="${C.collar}" stroke="${C.ink}" stroke-width="1"/><circle cx="100" cy="172" r="2" fill="${C.collar}" stroke="${C.ink}" stroke-width="1"/>
+      <!-- sponsor patch -->
+      <rect x="112" y="150" width="34" height="12" rx="3" fill="${C.collar}" stroke="${C.ink}" stroke-width="1.5"/>
+      <text x="129" y="159" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="8" fill="${C.ink}">SBTB</text>
+      <!-- name -->
+      <text x="104" y="194" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="16" fill="${C.collar}" stroke="${C.ink}" stroke-width="3" paint-order="stroke" letter-spacing="1">${p.shirt || ""}</text>
+      <!-- belly shine -->
+      <path d="M120 196 C 140 192, 150 180, 152 168" fill="none" stroke="${C.shirtLight}" stroke-width="3" stroke-linecap="round" opacity=".5"/>
       ${p.arms}`;
   }
-  const arm = (d, hoof) => `<path d="${d}" fill="none" stroke="${C.hide}" stroke-width="22" stroke-linecap="round"/><circle cx="${hoof[0]}" cy="${hoof[1]}" r="11" fill="${C.hoof}"/>`;
-  const dart = (x, y, rot) => `<g transform="translate(${x} ${y}) rotate(${rot})"><rect x="-22" y="-2.5" width="30" height="5" rx="2" fill="${C.dart}"/><path d="M8 0 L 24 0" stroke="#c9ccd6" stroke-width="2.5"/><path d="M-22 0 L -30 -8 L -30 8 Z" fill="${C.flight}"/></g>`;
-  const smile = `<path d="M84 122 Q 100 130, 116 122" fill="none" stroke="${C.ink}" stroke-width="2.5" stroke-linecap="round"/>`;
-  const grin  = `<path d="M80 120 Q 100 136, 120 120 Z" fill="${C.white}" stroke="${C.ink}" stroke-width="2"/>`;
-  const flat  = `<path d="M86 124 L 114 124" fill="none" stroke="${C.ink}" stroke-width="2.5" stroke-linecap="round"/>`;
-  const frown = `<path d="M84 128 Q 100 118, 116 128" fill="none" stroke="${C.ink}" stroke-width="2.5" stroke-linecap="round"/>`;
 
   const POSES = [
-    { name: "Waiting", when: "Your turn, his arms folded", cls: "",
-      brows: ["M70 64 L 92 68", "M108 66 L 130 60"], look: 2, ears: 0, mouth: flat, shirt: "BULLY",
-      arms: arm("M56 152 C 40 176, 66 194, 100 186", [104, 184]) + arm("M144 152 C 160 176, 134 194, 100 184", [90, 176]) },
-    { name: "Throwing", when: "Each of his darts, one at a time", cls: "",
-      brows: ["M70 66 L 92 64", "M108 60 L 130 66"], look: 4, ears: -2, mouth: flat, shirt: "BULLY",
-      arms: arm("M56 152 C 40 176, 46 200, 62 210", [64, 212]) + arm("M144 150 C 166 134, 180 120, 190 108", [192, 106]) + dart(200, 98, -20) },
-    { name: "Celebrating", when: "A 180, a checkout, a bull save", cls: "celebrate",
-      brows: ["M70 60 L 92 64", "M108 64 L 130 60"], look: 0, ears: -4, mouth: grin, shirt: "BULLY",
-      arms: arm("M56 150 C 36 132, 22 112, 16 92", [14, 88]) + arm("M144 150 C 164 132, 178 112, 184 92", [186, 88]) + dart(14, 68, -70) + dart(186, 68, 70) },
-    { name: "Sulking", when: "A bust or a missed double", cls: "",
-      brows: ["M70 60 L 92 70", "M108 70 L 130 60"], look: -3, ears: 6, mouth: frown, shirt: "BULLY",
-      arms: arm("M56 152 C 44 180, 46 202, 56 214", [58, 216]) + arm("M144 152 C 156 180, 154 202, 144 214", [142, 216]) },
+    { key: "waiting", name: "Waiting", when: "Your turn. Arms folded, not impressed.", cls: "",
+      brows: ["M68 62 L 94 70", "M106 68 L 132 60"], look: 3, ears: 0, lid: 0, mouth: mouths.flat, shirt: "BULLY",
+      arms: arm("M146 152 C 162 166, 150 184, 78 182", [70, 182], 90) + arm("M54 152 C 38 168, 54 194, 130 192", [138, 190], -90) },
+    { key: "throwing", name: "Throwing", when: "Each of his darts, one at a time.", cls: "",
+      brows: ["M68 66 L 94 62", "M106 60 L 132 66"], look: 5, ears: -2, lid: 2, mouth: mouths.flat, shirt: "BULLY",
+      arms: arm("M54 152 C 36 176, 40 202, 58 212", [60, 214], 10) + dart(46, 210, 100) + arm("M146 150 C 168 134, 182 120, 194 106", [196, 104], 40) + dart(206, 94, -20) },
+    { key: "celebrating", name: "Celebrating", when: "A 180, a checkout, a bull save.", cls: "celebrate",
+      brows: ["M68 58 L 94 64", "M106 64 L 132 58"], look: 0, ears: -4, lid: -3, mouth: mouths.grin, shirt: "BULLY",
+      arms: arm("M54 150 C 34 132, 20 112, 14 90", [12, 86], -20) + arm("M146 150 C 166 132, 180 112, 186 90", [188, 86], 20) + dart(12, 66, -75) + dart(188, 66, 75) },
+    { key: "sulking", name: "Sulking", when: "A bust or a missed double.", cls: "",
+      brows: ["M68 60 L 94 72", "M106 72 L 132 60"], look: -3, ears: 7, lid: 3, mouth: mouths.frown, shirt: "BULLY",
+      arms: arm("M54 152 C 42 180, 44 204, 54 216", [56, 218], 0) + arm("M146 152 C 158 180, 156 204, 146 216", [144, 218], 0) },
+    { key: "wince", name: "Wince", when: "You've just hit a big finish against him.", cls: "",
+      brows: ["M68 66 L 94 62", "M106 62 L 132 66"], look: -5, ears: 3, lid: 5, mouth: mouths.wince, shirt: "BULLY",
+      arms: arm("M54 152 C 44 180, 46 204, 56 216", [58, 218], 0) + arm("M146 150 C 156 128, 140 108, 120 100", [116, 98], -60) },
+    { key: "smug", name: "Smug", when: "Saved by the bull, or your miss.", cls: "",
+      brows: ["M68 64 L 94 68", "M106 66 L 132 58"], look: 4, ears: -1, lid: 4, mouth: mouths.smirk, shirt: "BULLY",
+      arms: arm("M146 152 C 162 166, 150 184, 78 182", [70, 182], 90) + arm("M54 152 C 38 168, 54 194, 130 192", [138, 190], -90) },
   ];
 
-  const svg = (p, size) => `<svg viewBox="-4 0 212 244" width="${size || 230}" height="${Math.round((size || 230) * 1.2)}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${p.name}">${body(p)}${head(p)}</svg>`;
+  const svg = (p, size, vb) => { const id = ++uid; return `<svg viewBox="${vb || "-10 0 224 244"}" width="${size || 230}" height="${Math.round((size || 230) * 1.09)}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bully ${p.name.toLowerCase()}">${body(p, id)}${head(p, id)}</svg>`; };
+  document.getElementById("hero").innerHTML = `${svg(POSES[0], 360)}<div><div class="t">Saved by <span>the Bull</span></div><p>Bully, the house player. Heavy, grumpy, and very hard to beat at level fifteen. He's drawn once as vector artwork, so he's sharp at any size and every pose is the same character.</p></div>`;
   document.getElementById("poses").innerHTML = POSES.map(p => `<div class="pose ${p.cls}">${svg(p)}<div class="name">${p.name}</div><div class="when">${p.when}</div></div>`).join("");
 
-  // small sizes: face-only avatar and the full figure as a logo
-  const face = size => `<div class="avatar" style="width:${size}px;height:${size}px"><svg viewBox="40 20 120 120" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${head(POSES[0])}</svg></div>`;
+  const face = (size, p) => { const id = ++uid; return `<div class="avatar" style="width:${size}px;height:${size}px"><svg viewBox="34 14 132 132" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${head(p || POSES[0], id)}</svg></div>`; };
   document.getElementById("small").innerHTML = `
     <figure>${face(96)}Avatar 96px</figure>
-    <figure>${face(48)}Avatar 48px</figure>
+    <figure>${face(48, POSES[5])}Avatar 48px</figure>
     <figure>${face(24)}Tab icon</figure>
     <figure>${svg(POSES[2], 80)}Logo 80px</figure>`;
 
-  document.getElementById("swatches").innerHTML = [["Hide", C.hide], ["Muzzle", C.muzzle], ["Horn", C.horn], ["Nose ring", C.ring], ["Shirt", C.shirt], ["Trousers", C.trouser], ["Dart", C.dart]]
+  document.getElementById("swatches").innerHTML = [["Hide", C.hide], ["Muzzle", C.muzzle], ["Horn", C.horn], ["Nose ring", C.ring], ["Shirt", C.shirt], ["Side panel", C.panel], ["Trousers", C.trouser]]
     .map(([n, c]) => `<span class="sw"><i style="background:${c}"></i>${n} <code style="color:var(--muted)">${c}</code></span>`).join("");
 })();
 </script>
