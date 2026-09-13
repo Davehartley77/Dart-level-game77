@@ -1,5 +1,6 @@
 <title>Saved by the Bull</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<link rel="icon" href="images/bully.png">
 <style>
   :root {
     --felt: #0f3d2a;
@@ -47,6 +48,10 @@
   .brand { display: flex; align-items: center; gap: 14px; }
   .brand h1 { font-family: var(--display); font-size: clamp(22px, 4vw, 38px); margin: 0; letter-spacing: .02em; color: var(--bone); text-shadow: 0 3px 0 rgba(0,0,0,.5); line-height: 1; }
   .brand h1 span { color: var(--red-2); }
+  .bully-mark { display: none; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+  .bully-mark.loaded { display: block; }
+  .bully-mark.loaded + .bull-mark { display: none; }
+  .avatar img, .who .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
   .bull-mark { width: 48px; height: 48px; border-radius: 50%; background:
       radial-gradient(circle, var(--red) 0 30%, var(--brass) 30% 36%, var(--green) 36% 62%, var(--brass) 62% 68%, var(--bone) 68% 100%);
     box-shadow: 0 0 0 3px var(--ink), 0 4px 12px rgba(0,0,0,.5); flex: none; }
@@ -287,6 +292,7 @@
 <div class="wrap">
   <header class="masthead">
     <div class="brand">
+      <img class="bully-mark" id="bullyMark" src="images/bully.png" alt="">
       <div class="bull-mark" aria-hidden="true"></div>
       <h1>Saved by <span>the Bull</span></h1>
     </div>
@@ -804,7 +810,22 @@
   const el = (sel, root) => (root || document).querySelector(sel);
   const app = el("#app"), meta = el("#meta");
 
-  function avatar(p, cls) { return `<div class="${cls || "avatar"}" style="background:${p.color}">${p.icon}</div>`; }
+  let bullyArt = null; // null = not checked yet, true = images/bully.png exists, false = missing
+  function avatar(p, cls) {
+    if (p.bot && bullyArt !== false) return `<div class="${cls || "avatar"}" style="background:#fff"><img class="bully-img" src="images/bully.png" alt="Bully"></div>`;
+    return `<div class="${cls || "avatar"}" style="background:${p.color}">${p.icon}</div>`;
+  }
+  function wireBullyArt() {
+    document.querySelectorAll("img.bully-img").forEach(img => {
+      img.addEventListener("load", () => { bullyArt = true; });
+      img.addEventListener("error", () => { if (bullyArt !== true) { bullyArt = false; render(); } });
+    });
+  }
+  (function () {
+    const m = document.getElementById("bullyMark"); if (!m) return;
+    m.addEventListener("load", () => { m.classList.add("loaded"); bullyArt = true; });
+    m.addEventListener("error", () => { if (bullyArt !== true) bullyArt = false; });
+  })();
   function pips(level) { return `<div class="pips" aria-label="Level ${level} of 5">${[1,2,3,4,5].map(n => `<span class="pip${n <= level ? " on" : ""}"></span>`).join("")}</div>`; }
   function legDots(won, need) { return `<div class="legs" aria-label="${won} of ${need} legs">${Array.from({ length: need }, (_, i) => `<span class="leg${i < won ? " on" : ""}"></span>`).join("")}</div>`; }
   function rulesTable() {
@@ -824,6 +845,7 @@
   // ---------- render ----------
   function render() {
     if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else renderPlayX01();
+    wireBullyArt();
   }
 
   function renderSetup() {
