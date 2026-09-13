@@ -179,6 +179,8 @@
 
   .submit-row { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 420px) { .submit-row { grid-template-columns: 1fr; } }
+  .word { font-family: var(--display); letter-spacing: .04em; }
+  .word span.off { opacity: .28; }
   .letters { display: inline-flex; gap: 3px; font-family: var(--num); font-weight: 800; font-size: 22px; letter-spacing: .02em; }
   .letters span { width: 24px; height: 30px; display: grid; place-items: center; border-radius: 5px; background: var(--red); color: var(--bone); }
   .letters span.off { background: rgba(0,0,0,.18); color: rgba(0,0,0,.35); }
@@ -1851,6 +1853,7 @@
 
 
   // ---------- Killer ----------
+  const wordHtml = n => `<span class="word" aria-label="${n} of 6 letters">${"KILLER".split("").map((c, i) => `<span class="${i < n ? "" : "off"}">${c}</span>`).join("")}</span>`;
   function lettersHtml(n) { return `<span class="letters" aria-label="${n} of 6 letters">${"KILLER".split("").map((c, i) => `<span class="${i < n ? "" : "off"}">${c}</span>`).join("")}</span>`; }
   function scoreboardKiller() {
     return `<div class="players">${state.players.map((q, i) => `
@@ -1886,7 +1889,7 @@
             <div class="sdt"><button type="button" data-bull="1" ${p.bot ? "disabled" : ""} style="width:auto;padding:0 14px">Bull</button></div></div>` : ""}
           ${p.letters < 6 ? `<div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">single +1, double +2, treble +3</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>` : ""}
-          ${isKiller ? `<div class="sub-h" style="color:#6b5a2c;margin:6px 0 0">Left to kill</div>` + others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${q.letters} letter${q.letters === 1 ? "" : "s"} left</div></div>
+          ${isKiller ? `<div class="sub-h" style="color:#6b5a2c;margin:6px 0 0">Left to kill</div>` + others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${lettersHtml(q.letters)}</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")
           : `<p class="hint" style="text-align:left;margin:4px 0 0">${!p.armed ? "Hit the bull and the other players' numbers appear here." : "Get all six letters back and the other players' numbers appear here."}</p>`}
         </div>
@@ -1899,7 +1902,7 @@
           <div class="turn">
             <div class="turn-head">
               <div class="who">${avatar(p)}<div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div></div>
-              ${k.phase === "play" ? `<div class="level-pill">${!p.armed ? "Needs the bull" : p.letters >= 6 ? "Killer" : p.letters + " of 6"}</div>` : `<div class="level-pill">Numbers</div>`}
+              ${k.phase === "play" ? `<div class="level-pill">${!p.armed ? "Needs the bull" : wordHtml(p.letters)}</div>` : `<div class="level-pill">Numbers</div>`}
             </div>
             ${body}
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
@@ -1925,7 +1928,7 @@
   function renderResultKiller(r) {
     return `<div class="result ${r.cls === "miss" ? "miss" : r.cls === "hit" ? "hit" : "neutral"}" role="status"><div>
         ${botDartsLine()}
-        <div class="big">${esc(r.big)}</div>
+        <div class="big">${r.big.startsWith("<") ? r.big : esc(r.big)}</div>
         <div class="detail">${esc(r.detail)}</div>
         <button class="btn" id="nextBtn" type="button">Next player</button>
         ${undoLink()}
@@ -2017,7 +2020,7 @@
     const mine = state.rounds.slice(-state.killer.darts).filter(r => r.killer && r.player === p.name);
     const summary = mine.map(r => r.tag).join(" · ") || "no darts";
     if (mine.length === 3 && mine.every(r => r.cls === "miss")) say(banter.blank(), { queue: true });
-    set({ result: { killer: true, big: !p.armed ? "NEEDS THE BULL" : p.letters >= 6 ? "KILLER" : p.letters > 0 ? `${p.letters} of 6` : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
+    set({ result: { killer: true, big: !p.armed ? "NEEDS THE BULL" : p.letters > 0 ? wordHtml(p.letters) : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
   }
   function botKillerTurn(p) {
     const skill = botSkill(p.botLevel);
