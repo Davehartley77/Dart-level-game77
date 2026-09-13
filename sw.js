@@ -1,5 +1,5 @@
 /* Saved by the Bull: works offline once installed. VERSION is stamped at each publish. */
-const VERSION = "20260913-144220";
+const VERSION = "20260913-144816";
 const SHELL_CACHE = "shell-" + VERSION;
 const ASSET_CACHE = "assets-v1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png", "./images/icon-maskable.png"];
