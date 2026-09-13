@@ -70,7 +70,8 @@ to stop and the highest score won. The June 2025 rules above replaced it.
 # Killer (added 2026-09-13)
 
 - Each player throws one dart to get their number (1–20). Two players can't share a number; throw again.
-- Everyone starts with the full word KILLER and can kill from the off.
+- Everyone starts with the full word KILLER, but nobody can kill until they have hit the bull once.
+  After that the bull is never needed again: killing depends only on having the full word.
 - Hit another player's number and they lose letters: single 1, double 2, treble 3. Lose all six and you are out.
 - Hit your own number to get letters back: single 1, double 2, treble 3, up to six. You can only kill while your word is full.
 - Three darts a turn. Last player with letters wins. Bully can play.

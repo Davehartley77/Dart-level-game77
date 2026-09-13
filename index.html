@@ -840,7 +840,7 @@
     const p = state.players[state.current]; if (!p) return;
     if (state.mode === "killer") {
       if (state.killer.phase === "pick") say([{ name: p.name }, "throw-one-dart"], { queue: true });
-      else say(p.letters >= 6 ? [{ name: p.name }, "get-killing"] : [{ name: p.name }, "need-more-letters"], { queue: true });
+      else say(!p.armed ? [{ name: p.name }, "hit-the-bull"] : p.letters >= 6 ? [{ name: p.name }, "get-killing"] : [{ name: p.name }, "need-more-letters"], { queue: true });
       return;
     }
     if (state.mode === "bull") {
@@ -963,6 +963,7 @@
         const low = t.toLowerCase();
         if (state.killer.phase === "pick") { const n = parseSpoken(t); if (n >= 1 && n <= 20) { voiceState(`Heard "${heard}": ${n}`); pickNumber(n); return; } continue; }
         if (/\b(miss|missed|nothing)\b/.test(low)) { voiceState(`Heard "${heard}": miss`); submitKillerDart(null, 0); return; }
+        if (/\b(bull|bullseye|bulls eye)\b/.test(low)) { voiceState(`Heard "${heard}": bull`); submitKillerDart("bull", 0); return; }
         const mult = /\b(treble|triple|three)\b/.test(low) ? 3 : /\b(double|two)\b/.test(low) ? 2 : 1;
         if (/\b(own|me|mine|myself|my number)\b/.test(low)) { voiceState(`Heard "${heard}": own ×${mult}`); submitKillerDart(state.current, mult); return; }
         const idx = state.players.findIndex((q, i) => i !== state.current && q.letters > 0 && low.includes(q.name.toLowerCase()));
@@ -997,7 +998,7 @@
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
   const BANKS = { serena: "Serena", daniel: "Daniel" };
-  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights." };
+  const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
   const slugName = n => String(n).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1386,7 +1387,7 @@
           <p class="rules-note">First player to reach this score wins. Fewer points makes a quick game; 50 is the original.</p>
         </div>` : killer ? `<div class="card">
           <h2>How Killer works</h2>
-          <p class="rules-note">Each player throws one dart to get their number; two players can't share one. Everyone starts with the full word KILLER and can kill from the off.</p>
+          <p class="rules-note">Each player throws one dart to get their number; two players can't share one. Everyone starts with the full word KILLER, but nobody can kill until they've hit the bull once. After that the bull is never needed again.</p>
           <p class="rules-note">Hit another player's number and they lose letters: a single takes one, a double two, a treble three. Lose all six and you're out.</p>
           <p class="rules-note">Hit your own number to get letters back, single one, double two, treble three, up to six. You can only kill while your word is full. Last player with letters wins.</p>
           <p class="rules-note">Three darts a turn. Tap the number you hit and single, double or treble, or Miss. Bully can play too.</p>
@@ -1427,7 +1428,7 @@
     const addPlayer = () => {
       const name = nameIn.value.trim(); if (!name) { nameIn.focus(); return; }
       const color = COLORS[state.players.filter(p => !p.bot).length % COLORS.length];
-      state.players.push({ name, color, icon: name.trim().charAt(0).toUpperCase(), score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6 });
+      state.players.push({ name, color, icon: name.trim().charAt(0).toUpperCase(), score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6, armed: false });
       const nextColor = COLORS[state.players.length % COLORS.length], nextIcon = ICONS[state.players.length % ICONS.length];
       set({ draft: { name: "", color: nextColor, icon: nextIcon } });
       el("#nameIn").focus();
@@ -1451,7 +1452,7 @@
     el("#addBot").addEventListener("click", () => {
       d.name = nameIn.value;
       state.players = state.players.filter(p => !p.bot);
-      state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6 });
+      state.players.push({ name: "Bully", bot: true, botLevel: state.botLevel, color: "#8fa3b8", icon: "🐂", score: 0, level: 1, target: randomTarget(1), remaining: state.x01.start, legs: 0, dartsThrown: 0, pointsScored: 0, last: null, number: null, letters: 6, armed: false });
       set({});
     });
     app.querySelectorAll("[data-resume]").forEach(b => b.addEventListener("click", () => { audio(); resumeGame(+b.dataset.resume); }));
@@ -1830,7 +1831,7 @@
     return `<div class="players">${state.players.map((q, i) => `
       <div class="pcard${i === state.current ? " active" : ""}${q.letters <= 0 ? " out" : ""}">
         ${avatar(q)}
-        <div><div class="pname">${esc(q.name)}${q.bot ? ` <span class="lvl">bot ${q.botLevel}</span>` : ""} ${q.letters >= 6 ? `<span class="killer-tag">Killer</span>` : q.letters <= 0 ? `<span class="killer-tag" style="color:var(--muted)">Out</span>` : ""}</div><div class="sub">${lettersHtml(q.letters)}</div></div>
+        <div><div class="pname">${esc(q.name)}${q.bot ? ` <span class="lvl">bot ${q.botLevel}</span>` : ""} ${q.letters <= 0 ? `<span class="killer-tag" style="color:var(--muted)">Out</span>` : !q.armed ? `<span class="killer-tag" style="color:var(--brass-2)">Needs the bull</span>` : q.letters >= 6 ? `<span class="killer-tag">Killer</span>` : ""}</div><div class="sub">${lettersHtml(q.letters)}</div></div>
         <div class="score">${q.number ? `<span class="num-badge">${q.number}</span>` : `<span class="lvl">no number yet</span>`}</div>
         ${state.players.length > 1 && q.letters > 0 ? `<button type="button" class="leave" data-leave="${i}">Leave game</button>` : ""}
       </div>`).join("")}</div>`;
@@ -1848,19 +1849,21 @@
         <div class="pick-pad">${Array.from({ length: 20 }, (_, i) => i + 1).map(n => `<button type="button" data-pick="${n}" ${taken.has(n) || p.bot ? "disabled" : ""}>${n}</button>`).join("")}</div>
         <div class="submit-row" style="grid-template-columns:1fr"><button class="btn quiet" id="pickMiss" type="button" ${p.bot ? "disabled" : ""}>Missed the board, throw again</button></div>`;
     } else {
-      const isKiller = p.letters >= 6;
+      const isKiller = p.letters >= 6 && p.armed;
       const others = state.players.map((q, i) => ({ q, i })).filter(({ q, i }) => i !== state.current && q.letters > 0);
       body = `
         <div class="req">
-          <div><div class="label">${isKiller ? "You are a killer. Get killing." : "You need more letters first"}</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="num-badge">${p.number}</span>${lettersHtml(p.letters)}</div></div>
+          <div><div class="label">${!p.armed ? "Hit the bull to become a killer" : isKiller ? "You are a killer. Get killing." : "You need more letters first"}</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="num-badge">${p.number}</span>${lettersHtml(p.letters)}</div></div>
           <div class="darts-left" aria-label="Darts left">${[0,1,2].map(i => `<i class="${i < k.darts ? "used" : ""}"></i>`).join("")}</div>
         </div>
         <div class="targets-k">
+          ${!p.armed ? `<div class="target-k" style="background:rgba(242,184,59,.14)"><span class="tn">🎯</span><div><div class="tname">Bull</div><div class="tsub">hit it once and you're a killer</div></div>
+            <div class="sdt"><button type="button" data-bull="1" ${p.bot ? "disabled" : ""} style="width:auto;padding:0 14px">Bull</button></div></div>` : ""}
           <div class="target-k" style="background:rgba(232,54,44,.08)"><span class="tn">${p.number}</span><div><div class="tname">Own number</div><div class="tsub">${p.letters >= 6 ? "already full" : "single +1, double +2, treble +3"}</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${state.current}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>
           ${isKiller ? others.map(({ q, i }) => `<div class="target-k"><span class="tn">${q.number}</span><div><div class="tname">${esc(q.name)}</div><div class="tsub">${q.letters} letter${q.letters === 1 ? "" : "s"} left</div></div>
             <div class="sdt">${[1,2,3].map(m => `<button type="button" data-kt="${i}" data-m="${m}" ${p.bot ? "disabled" : ""}>${"SDT"[m - 1]}</button>`).join("")}</div></div>`).join("")
-          : `<p class="hint" style="text-align:left;margin:4px 0 0">Get all six letters back and the other players' numbers appear here.</p>`}
+          : `<p class="hint" style="text-align:left;margin:4px 0 0">${!p.armed ? "Hit the bull and the other players' numbers appear here." : "Get all six letters back and the other players' numbers appear here."}</p>`}
         </div>
         <div class="submit-row" style="grid-template-columns:1fr 1fr"><button class="btn red" id="kMiss" type="button" ${p.bot ? "disabled" : ""}>Miss<small>nothing hit</small></button><button class="btn quiet" id="kEnd" type="button" ${p.bot ? "disabled" : ""}>End turn<small>${3 - k.darts} dart${3 - k.darts === 1 ? "" : "s"} left</small></button></div>
         <p class="hint">Tap the number you hit, then S, D or T. Keyboard: a name's first letter isn't needed, just use the buttons. Voice: "Sue double", "own treble", "miss".</p>`;
@@ -1871,7 +1874,7 @@
           <div class="turn">
             <div class="turn-head">
               <div class="who">${avatar(p)}<div><div class="label">On the oche</div><div class="pname">${esc(p.name)}</div></div></div>
-              ${k.phase === "play" ? `<div class="level-pill">${p.letters >= 6 ? "Killer" : p.letters + " of 6"}</div>` : `<div class="level-pill">Numbers</div>`}
+              ${k.phase === "play" ? `<div class="level-pill">${!p.armed ? "Needs the bull" : p.letters >= 6 ? "Killer" : p.letters + " of 6"}</div>` : `<div class="level-pill">Numbers</div>`}
             </div>
             ${body}
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
@@ -1888,6 +1891,7 @@
     app.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => pickNumber(+b.dataset.pick)));
     const pm = el("#pickMiss"); if (pm) pm.addEventListener("click", () => { say(["miss", { name: p.name }, "throw-one-dart"]); voiceState("Throw again."); });
     app.querySelectorAll("[data-kt]").forEach(b => b.addEventListener("click", () => submitKillerDart(+b.dataset.kt, +b.dataset.m)));
+    app.querySelectorAll("[data-bull]").forEach(b => b.addEventListener("click", () => submitKillerDart("bull", 0)));
     const km = el("#kMiss"); if (km) km.addEventListener("click", () => submitKillerDart(null, 0));
     const ke = el("#kEnd"); if (ke) ke.addEventListener("click", () => endKillerTurn());
     const no = el("#noticeOk"); if (no) no.addEventListener("click", () => set({ notice: null }));
@@ -1924,11 +1928,23 @@
   function submitKillerDart(targetIdx, mult) {
     if (state.result || state.dialog || state.winner != null || state.killer.phase !== "play") return;
     const p = state.players[state.current];
-    const t = targetIdx == null ? null : state.players[targetIdx];
+    const t = targetIdx == null || targetIdx === "bull" ? null : state.players[targetIdx];
     snapshot(`${p.name}'s dart ${state.killer.darts + 1}`);
     state.killer.darts++;
     let text, tag, cls = "neutral", line = null;
-    if (!t) { text = "missed"; tag = "miss"; cls = "miss"; }
+    if (targetIdx === "bull") {
+      if (p.armed) { text = "bull, no effect"; tag = "bull"; cls = "neutral"; line = ["no-effect"]; }
+      else {
+        p.armed = true; text = "hit the bull, now a KILLER"; tag = "KILLER"; cls = "hit";
+        const others = state.players.filter(q => q !== p && q.letters > 0).sort((a, b) => b.letters - a.letters);
+        const victim = others.length ? others[Math.random() < 0.6 ? 0 : Math.floor(Math.random() * others.length)] : null;
+        const stir = victim ? [["watch-out", { name: victim.name }], [{ name: victim.name }, "is-looking-nervous"], [{ name: victim.name }, "has-it-coming"], [{ name: victim.name }, "in-your-sights"]][Math.floor(Math.random() * 4)] : [];
+        line = [{ name: p.name }, "is-a-killer", "get-killing"].concat(stir);
+        sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} hit the bull. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600);
+        if (p.bot) state.bullyMood = "celebrating";
+      }
+    }
+    else if (!t) { text = "missed"; tag = "miss"; cls = "miss"; }
     else if (t === p) {
       const before = p.letters; p.letters = Math.min(6, p.letters + mult);
       const got = p.letters - before;
@@ -1944,7 +1960,7 @@
       }
       if (got && p.letters >= 6) { sfx.crowd(1.6); confetti(60); state.notice = { big: "KILLER!", detail: `${p.name} has the full word back. Get killing!` }; setTimeout(() => { if (state.notice) set({ notice: null }); }, 2600); }
       if (p.bot) state.bullyMood = p.letters >= 6 ? "celebrating" : "waiting";
-    } else if (p.letters < 6) {
+    } else if (p.letters < 6 || !p.armed) {
       text = `hit ${t.name}'s ${["single", "double", "treble"][mult - 1]}, not a killer`; tag = "no effect"; cls = "neutral"; line = ["no-effect"];
     } else {
       const before = t.letters; t.letters = Math.max(0, t.letters - mult);
@@ -1968,7 +1984,7 @@
     const p = state.players[state.current];
     const mine = state.rounds.slice(-state.killer.darts).filter(r => r.killer && r.player === p.name);
     const summary = mine.map(r => r.tag).join(" · ") || "no darts";
-    set({ result: { killer: true, big: p.letters >= 6 ? "KILLER" : p.letters > 0 ? `${p.letters} of 6` : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
+    set({ result: { killer: true, big: !p.armed ? "NEEDS THE BULL" : p.letters >= 6 ? "KILLER" : p.letters > 0 ? `${p.letters} of 6` : "OUT", detail: `${p.name}: ${summary}`, cls: mine.some(r => r.cls === "hit") ? "hit" : mine.every(r => r.cls === "miss") && mine.length ? "miss" : "neutral" } });
   }
   function botKillerTurn(p) {
     const skill = botSkill(p.botLevel);
@@ -1978,6 +1994,13 @@
     }
     const throwOne = () => {
       if (state.result || state.winner != null || state.players[state.current] !== p || state.killer.darts >= 3) return;
+      if (!p.armed) {
+        const b = throwDart({ kind: "B" }, skill);
+        state.botDarts = (state.botDarts ? state.botDarts + " · " : "") + b.label;
+        submitKillerDart(b.label === "Bull" ? "bull" : null, 0);
+        if (state.killer.darts < 3 && !state.result && state.winner == null) whenQuiet(throwOne, 900);
+        return;
+      }
       let aimNum;
       if (p.letters >= 6) { const others = state.players.filter(q => q !== p && q.letters > 0); others.sort((a, b) => b.letters - a.letters); aimNum = others.length ? others[0].number : p.number; }
       else aimNum = p.number;
@@ -2012,7 +2035,7 @@
     set({ current, legStarter: starter, result: index === state.current ? null : state.result, dialog: null, entry: "", msg: "" });
   }
   function resetPlayers() {
-    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; p.number = null; p.letters = 6; });
+    state.players.forEach(p => { p.score = 0; p.level = 1; p.target = randomTarget(1); p.remaining = state.x01.start; p.legs = 0; p.dartsThrown = 0; p.pointsScored = 0; p.last = null; p.number = null; p.letters = 6; p.armed = false; });
     state.killer = { phase: "pick", darts: 0 };
   }
   function playAgain() {
