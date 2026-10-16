@@ -12,7 +12,7 @@ A darts scoring app for a few friends: **Saved by the Bull** (the main game, rul
 | `RULES.md` | The Saved by the Bull rules. Keep this in step with the `LEVELS` table in `index.html`. |
 | `manifest.json`, `sw.js` | Make it installable and offline. **Run `tools/stamp.sh` before publishing** so installed phones pick up the new version. |
 | `images/` | App icons. |
-| `sounds/voice/<voice>/` | Recorded caller clips (`.m4a`) plus `manifest.txt` and `names.txt` listing them. **George** (the default caller) is the free Kokoro AI voice, brisk with no echo (the owner disliked echo and slow delivery), made by `tools/build-george.py`; Serena and Daniel are Mac voices. |
+| `sounds/voice/<voice>/` | Recorded caller clips (`.m4a`) plus `manifest.txt` and `names.txt` listing them. **George** (the default caller) is the free Kokoro AI voice: brisk, no echo, breaths cut, and a drawn-out 180 (the owner disliked echo, slow delivery and pitch tricks), made by `tools/build-george.py`; Serena and Daniel are Mac voices. |
 | `tools/` | Mac-only scripts: `build-voice.sh` records a full voice set, `add-phrases.sh` adds new caller lines, `stamp.sh` bumps the app version. They use macOS `say`/`afconvert`, so they won't run in a Linux cloud session. |
 | `design/mascot-draft.html` | Bully's character sheet (poses). |
 | `old/` | Earlier Python/React attempts. Not used by the game; kept for reference only. |
