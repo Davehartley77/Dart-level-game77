@@ -345,6 +345,75 @@
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
+  /* ---------- phones during a game: everything you need on one screen ---------- */
+  @media (max-width: 600px) {
+    body.playing .wrap { padding-top: max(8px, env(safe-area-inset-top)); }
+    body.playing .masthead { padding: 6px 10px; margin-bottom: 10px; gap: 4px; }
+    body.playing .bully-mark { display: none; }
+    body.playing .brand h1 { font-size: 26px; transform: skewX(-7deg); text-shadow: 2px 2px 0 var(--ink); }
+    body.playing .meta { flex-wrap: nowrap; overflow-x: auto; padding-top: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    body.playing .meta::-webkit-scrollbar { display: none; }
+    body.playing .chip, body.playing .btn-ghost { height: 32px; flex: none; }
+    body.playing .chip + .btn-ghost { margin-left: 0; }
+    body.playing .play { gap: 12px; }
+    body.playing .turn { padding: 12px; border-width: 3px; }
+    body.playing .who { gap: 8px; }
+    body.playing .who .avatar { width: 36px; height: 36px; font-size: 18px; }
+    body.playing .who .label { font-size: 11px; }
+    body.playing .level-pill { font-size: 14px; padding: 6px 10px; }
+    body.playing .tips { display: none; }
+    body.playing #voiceLine:empty { display: none; }
+    /* Saved by the Bull */
+    body.playing .stage { margin-top: 6px; }
+    body.playing canvas.board { display: none; }
+    body.playing .target-box .target { font-size: 76px; }
+    body.playing .target-box .worth { font-size: 14px; }
+    body.playing .submit-row { margin-top: 12px; gap: 8px; }
+    body.playing .submit-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    body.playing .submit-row .btn { padding: 14px 6px; font-size: 20px; }
+    body.playing .submit-row .btn.brass { font-size: 15px; }
+    body.playing .submit-row.three .btn small { display: none; }
+    /* 501: score box and number pad side by side */
+    body.playing .req { grid-template-columns: auto 1fr; gap: 10px; margin-top: 8px; }
+    body.playing .req .n { font-size: 60px; }
+    body.playing .suggest { min-width: 0; padding: 8px 10px; }
+    body.playing .suggest .route { font-size: 20px; }
+    body.playing .suggest .route.small { font-size: 15px; }
+    body.playing .suggest .why { font-size: 12px; }
+    body.playing .entry { grid-template-columns: 1fr auto; margin-top: 10px; gap: 8px; }
+    body.playing .scored { padding: 8px 10px; gap: 6px; justify-content: flex-start; }
+    body.playing .scored .value { font-size: 40px; min-height: 40px; }
+    body.playing .scored .msg { min-height: 0; font-size: 13px; }
+    body.playing .quick { gap: 4px; }
+    body.playing .quick button { padding: 4px 7px; font-size: 15px; }
+    body.playing .pad { grid-template-columns: repeat(3, 52px); gap: 6px; }
+    body.playing .pad button { height: 46px; font-size: 22px; }
+    body.playing .x01-row { margin-top: 10px; }
+    body.playing .x01-row .btn { padding: 14px; font-size: 22px; }
+    /* Killer */
+    body.playing .targets-k { gap: 6px; margin-top: 10px; }
+    body.playing .target-k { padding: 6px 8px; gap: 8px; }
+    body.playing .sdt button { width: 40px; height: 40px; }
+    body.playing .pick-pad { gap: 6px; margin-top: 10px; }
+    body.playing .pick-pad button { height: 44px; }
+    /* results */
+    body.playing .result { padding: 12px; }
+    body.playing .result .detail { font-size: 18px; margin: 6px 0 12px; }
+    /* scoreboard */
+    body.playing .side h2 { margin: 10px 0 6px; }
+    body.playing .players { gap: 8px; }
+    body.playing .pcard { padding: 8px 10px; gap: 10px; }
+    body.playing .pcard.active { transform: none; }
+    body.playing .pcard .avatar { width: 32px; height: 32px; font-size: 16px; }
+    body.playing .pcard .pname { font-size: 16px; }
+    body.playing .score .n { font-size: 30px; }
+    body.playing .score .bar { width: 64px; }
+    body.playing .history { max-height: 200px; }
+    body.playing .pcard { position: relative; }
+    body.playing .pcard:has(.leave) { padding-right: 26px; }
+    body.playing .pcard .leave { position: absolute; grid-column: auto; top: 4px; right: 2px; font-size: 0; padding: 4px 6px; }
+    body.playing .pcard .leave::after { content: "✕"; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -1241,7 +1310,11 @@
   function avg(p) { return p.dartsThrown ? ((p.pointsScored / p.dartsThrown) * 3).toFixed(1) : "–"; }
 
   // ---------- render ----------
+  let lastView = null;
   function render() {
+    const view = state.page || state.screen;
+    document.body.classList.toggle("playing", view === "play");
+    if (view !== lastView) { lastView = view; window.scrollTo(0, 0); }
     if (state.page === "settings") renderSettings();
     else if (state.page === "checkouts") renderCheckouts();
     else if (state.screen === "setup") renderSetup(); else if (state.mode === "bull") renderPlayBull(); else if (state.mode === "killer") renderPlayKiller(); else renderPlayX01();
@@ -1591,7 +1664,7 @@
               <button class="btn brass" id="bullBtn" type="button">Saved by the Bull<small>no change · ${state.bullKeep ? `keep ${p.target}` : "new number"} next turn</small></button>
               <button class="btn red" id="missBtn" type="button">Missed<small>${L.penalty ? "−" + L.penalty : "0"}${L.failTo < L.level ? ` · back to level ${L.failTo}` : " · stays on level 1"}</small></button>
             </div>
-            <p class="hint">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.${SR ? " With voice control on, just say \"hit\", \"miss\" or \"bull\"." : ""}</p>
+            <p class="hint tips">Throw three darts, then press one. If the checkout is no longer possible with the darts left, throw for the bull: hit it and you're saved. Keyboard: H hit, B bull, M missed.${SR ? " With voice control on, just say \"hit\", \"miss\" or \"bull\"." : ""}</p>
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultBull(state.result) : ""}
           </div>
@@ -1655,7 +1728,7 @@
               <button class="btn" id="enterBtn" type="button" ${state.entry === "" ? "disabled" : ""}>Enter score</button>
               <button class="btn red" id="bustBtn" type="button">Bust</button>
             </div>
-            <p class="hint">Type the total of the three darts and press Enter.${SR ? " Or turn on voice control and just say it: the score goes in by itself, and \"bust\", \"next\" and \"undo\" work too." : ""}</p>
+            <p class="hint tips">Type the total of the three darts and press Enter.${SR ? " Or turn on voice control and just say it: the score goes in by itself, and \"bust\", \"next\" and \"undo\" work too." : ""}</p>
             <p class="hint" id="voiceLine" style="color:var(--green);font-weight:600"></p>
             ${state.result ? renderResultX01(state.result) : ""}
           </div>
@@ -1894,7 +1967,7 @@
           : `<p class="hint" style="text-align:left;margin:4px 0 0">${!p.armed ? "Hit the bull and the other players' numbers appear here." : "Get all six letters back and the other players' numbers appear here."}</p>`}
         </div>
         <div class="submit-row" style="grid-template-columns:1fr 1fr"><button class="btn red" id="kMiss" type="button" ${p.bot ? "disabled" : ""}>Miss<small>nothing hit</small></button><button class="btn quiet" id="kEnd" type="button" ${p.bot ? "disabled" : ""}>End turn<small>${3 - k.darts} dart${3 - k.darts === 1 ? "" : "s"} left</small></button></div>
-        <p class="hint">Tap the number you hit, then S, D or T. Keyboard: a name's first letter isn't needed, just use the buttons. Voice: "Sue double", "own treble", "miss".</p>`;
+        <p class="hint tips">Tap the number you hit, then S, D or T. Keyboard: a name's first letter isn't needed, just use the buttons. Voice: "Sue double", "own treble", "miss".</p>`;
     }
     app.innerHTML = `
       <section class="play">
