@@ -1369,7 +1369,7 @@
           : `<p class="rules-note">In Chrome or Edge: open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. In Safari on a Mac: File, then Add to Dock.</p>`}
           ${("caches" in window) && state.callerVoice !== "device" && !/claudeusercontent|claude\.ai/i.test(location.hostname) && location.protocol !== "file:" ? `
           <div class="sub-h" style="margin-top:16px">Caller without a signal</div>
-          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 7 MB, once.</p>
+          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 5 MB, once.</p>
           <div class="field" style="align-items:center"><button class="btn quiet" id="keepVoiceBtn" type="button" style="padding:10px 16px;font-size:16px">Keep ${BANKS[state.callerVoice] || ""} on this phone</button><span id="keepVoiceStatus" class="rules-note" style="margin:0"></span></div>` : ""}
         </div>
 
