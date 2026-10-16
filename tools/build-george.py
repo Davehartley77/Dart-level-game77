@@ -36,6 +36,18 @@ for k in keys:
         print("no text for", k)
 for nm in names:
     jobs.append(("name-" + nm, pretty.get(nm, nm.capitalize()) + ".", 1.3))
+# Whole sentences flow far better than words glued together, so the commonest lines get their own clips:
+# "you require N", "checkout N" and every checkout route (index.html uses them when present).
+def part(t):
+    if t == "Bull": return "bull"
+    if t == "25": return "outer bull"
+    return {"T": "treble ", "D": "double "}.get(t[0], "single ") + words(int(t.lstrip("TD")))
+routes = sorted(set(re.findall(r'\d+:"([^"]+)"', re.search(r"const CHECKOUTS = \{(.*?)\};", src, re.S).group(1))))
+for n in range(2, 171):
+    jobs += [(f"req-{n}", f"you require {words(n)}.", 1.3), (f"chk-{n}", f"checkout {words(n)}.", 1.3)]
+for r in routes:
+    jobs.append(("route-" + r.lower().replace(" ", "-"), ", ".join(part(t) for t in r.split()) + ".", 1.3))
+keys += [j[0] for j in jobs if j[0].split("-")[0] in ("req", "chk", "route") and j[0] not in keys]
 GATE = "agate=threshold=0.03:ratio=6:attack=2:release=60"
 FX = ("silenceremove=start_periods=1:start_threshold=-35dB:stop_periods=-1:stop_duration=0.08:stop_threshold=-35dB," + GATE +
       ",acompressor=threshold=-20dB:ratio=3:attack=5:release=80,apad=pad_dur=0.04,loudnorm=I=-14:TP=-1.5")

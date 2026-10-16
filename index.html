@@ -1101,6 +1101,7 @@
   function tokenText(t) {
     if (typeof t === "number") return t === 180 ? "One hundred and eighty!" : t === 0 ? "No score." : String(t) + ".";
     if (t && t.name) return t.name + ".";
+    if (t && t.route) return t.parts.map(tokenText).join(" ");
     return TOKEN_TEXT[t] || String(t);
   }
   const tokensText = tokens => tokens.map(tokenText).join(" ");
@@ -1111,8 +1112,9 @@
       else if (t[0] === "T") out.push("treble", +t.slice(1)); else if (t[0] === "D") out.push("double", +t.slice(1));
       else out.push("single", +t);
     });
-    return out;
+    return [{ route, parts: out }]; // a recorded voice can say the whole route as one clip; otherwise it's said word by word
   }
+  const routeSlug = route => route.toLowerCase().split(" ").join("-");
   let bankSrc = null, bankQueue = [], bankPlaying = false, bankResolve = null, clipTimer = null;
   const clipCache = new Map(); // url -> decoded AudioBuffer
   async function loadClip(url) {
@@ -1149,7 +1151,12 @@
   }
   function lineUrls(tokens, v) {
     const urls = [];
-    for (const t of tokens) {
+    // whole-sentence clips flow better than single words, so use them when the voice has them
+    const whole = key => bank.manifest[v].has(key) && (urls.push(bankBase(v) + key + ".m4a"), true);
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if ((t === "you-require" || t === "checkout") && typeof tokens[i + 1] === "number" && whole((t === "checkout" ? "chk-" : "req-") + tokens[i + 1])) { i++; continue; }
+      if (t && t.route) { if (!whole("route-" + routeSlug(t.route))) { const sub = lineUrls(t.parts, v); if (!sub) return null; urls.push(...sub); } continue; }
       if (t && t.name) { const sl = slugName(t.name); if (bank.names[v].has(sl)) urls.push(bankBase(v) + "name-" + sl + ".m4a"); continue; }
       const key = typeof t === "number" ? "n-" + t : t;
       if (!bank.manifest[v].has(key)) { if (typeof t === "number") return null; continue; } // a number we can't say means the device voice takes the line; an unknown phrase is just skipped
@@ -1369,7 +1376,7 @@
           : `<p class="rules-note">In Chrome or Edge: open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. In Safari on a Mac: File, then Add to Dock.</p>`}
           ${("caches" in window) && state.callerVoice !== "device" && !/claudeusercontent|claude\.ai/i.test(location.hostname) && location.protocol !== "file:" ? `
           <div class="sub-h" style="margin-top:16px">Caller without a signal</div>
-          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 5 MB, once.</p>
+          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 12 MB, once.</p>
           <div class="field" style="align-items:center"><button class="btn quiet" id="keepVoiceBtn" type="button" style="padding:10px 16px;font-size:16px">Keep ${BANKS[state.callerVoice] || ""} on this phone</button><span id="keepVoiceStatus" class="rules-note" style="margin:0"></span></div>` : ""}
         </div>
 
@@ -1400,11 +1407,11 @@
   function wireCallerControls() {
     const vb2 = el("#voiceBtn2"); if (vb2) vb2.addEventListener("click", () => { set({ voice: !state.voice }); if (state.voice) say(["caller-on"]); else { stopBank(); if (canSpeak) speechSynthesis.cancel(); } });
     const vsel = el("#voiceSel"); if (vsel) vsel.addEventListener("change", () => { state.voiceName = vsel.value; save(); speak("Game on. One hundred and eighty!"); });
-    app.querySelectorAll("[data-caller]").forEach(b => b.addEventListener("click", () => { stopBank(); set({ callerVoice: b.dataset.caller, voice: true }); say(["game-on", { name: "Dave" }, "you-require", 141, "treble", 20, "treble", 19, "double", 12]); }));
+    app.querySelectorAll("[data-caller]").forEach(b => b.addEventListener("click", () => { stopBank(); set({ callerVoice: b.dataset.caller, voice: true }); say(["game-on", { name: "Dave" }, "you-require", 141, ...routeTokens("T20 T19 D12")]); }));
     const tv = el("#testVoice"); if (tv) tv.addEventListener("click", () => {
       unlockSpeech();
       if (!state.voice) state.voice = true;
-      say(["game-on", { name: "Dave" }, "you-require", 170, "treble", 20, "treble", 20, "bull"]);
+      say(["game-on", { name: "Dave" }, "you-require", 170, ...routeTokens("T20 T20 Bull")]);
       if (!voices().length) setTimeout(() => { if (state.page === "settings") render(); }, 600);
     });
   }
