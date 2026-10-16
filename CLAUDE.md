@@ -12,7 +12,7 @@ A darts scoring app for a few friends: **Saved by the Bull** (the main game, rul
 | `RULES.md` | The Saved by the Bull rules. Keep this in step with the `LEVELS` table in `index.html`. |
 | `manifest.json`, `sw.js` | Make it installable and offline. **Run `tools/stamp.sh` before publishing** so installed phones pick up the new version. |
 | `images/` | App icons. |
-| `sounds/voice/<voice>/` | Recorded caller clips (`.m4a`) plus a `manifest.txt` listing them. |
+| `sounds/voice/<voice>/` | Recorded caller clips (`.m4a`) plus `manifest.txt` and `names.txt` listing them. **George** (the default caller) is the free Kokoro AI voice with an arena echo, made by `tools/build-george.py`; Serena and Daniel are Mac voices. |
 | `tools/` | Mac-only scripts: `build-voice.sh` records a full voice set, `add-phrases.sh` adds new caller lines, `stamp.sh` bumps the app version. They use macOS `say`/`afconvert`, so they won't run in a Linux cloud session. |
 | `design/mascot-draft.html` | Bully's character sheet (poses). |
 | `old/` | Earlier Python/React attempts. Not used by the game; kept for reference only. |
@@ -23,5 +23,5 @@ A darts scoring app for a few friends: **Saved by the Bull** (the main game, rul
 
 ## Working notes
 - Develop on the session branch, then merge to `main`.
-- Adding a new caller phrase needs a recording on the Mac (`tools/add-phrases.sh`). Unknown phrases are skipped, not spoken, so a missing clip makes the caller go quiet for that line.
+- Adding a new caller phrase: add it to `TOKEN_TEXT` in `index.html`, then run `tools/build-george.py` (works in a cloud session) for George, and `tools/add-phrases.sh` on the Mac for Serena and Daniel. Unknown phrases are skipped, not spoken, so a missing clip makes the caller go quiet for that line.
 - Keep it working on iPhone Safari. It's the main device, including the silent-switch audio trick and the installed home-screen app.

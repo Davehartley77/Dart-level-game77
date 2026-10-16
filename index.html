@@ -747,10 +747,11 @@
   let savedGames = load(SAVED_KEY) || [];
   let state = load(KEY) || freshSetup();
   state.listenMode = false; // the mic only starts from a tap on the page
+  if (!state.georgeOffered) { state.georgeOffered = true; if (state.callerVoice !== "device") state.callerVoice = "george"; } // George became the caller once; anyone can switch back in Settings
 
   function freshSetup() {
     return { screen: "setup", mode: "bull", targetScore: 50, customTarget: "", bullKeep: true, x01: { start: 501, legs: 1 }, draft: { name: "", color: COLORS[0], icon: ICONS[0] },
-      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "serena", page: null, killer: { phase: "pick", darts: 0 } };
+      players: [], current: 0, rounds: [], result: null, winner: null, round: 1, dialog: null, entry: "", msg: "", voice: true, voiceName: "", listenMode: false, legStarter: 0, leg: 1, undo: [], botLevel: 5, botDarts: "", bullyMood: "waiting", callerVoice: "george", georgeOffered: true, page: null, killer: { phase: "pick", darts: 0 } };
   }
   function load(key) {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
@@ -767,7 +768,7 @@
     const game = JSON.parse(JSON.stringify(state)); game.dialog = null; game.result = null; game.entry = ""; game.msg = ""; game.listenMode = false;
     savedGames.unshift({ id: Date.now(), when: new Date().toISOString(), title: names, mode: state.mode, targetScore: state.targetScore, start: state.x01.start, round: state.round, leg: state.leg, game });
     savedGames = savedGames.slice(0, 12);
-    const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget; fresh.mode = state.mode; fresh.x01 = state.x01; fresh.voice = state.voice;
+    const fresh = freshSetup(); fresh.targetScore = state.targetScore; fresh.customTarget = state.customTarget; fresh.mode = state.mode; fresh.x01 = state.x01; fresh.voice = state.voice; fresh.callerVoice = state.callerVoice; fresh.voiceName = state.voiceName;
     state = fresh; save(); render();
   }
   function resumeGame(id) {
@@ -1081,7 +1082,7 @@
   // Every line the caller can say was recorded once on a Mac (tools/build-voice.sh) as small clips in
   // sounds/voice/<voice>/. Lines are built from tokens: a number, a phrase key, or a player's name.
   // If the clips aren't reachable (the claude.ai copy, or a name that wasn't recorded) the device voice is used.
-  const BANKS = { serena: "Serena", daniel: "Daniel" };
+  const BANKS = { george: "George", serena: "Serena", daniel: "Daniel" };
   const TOKEN_TEXT = { "you-require": "you require", "game-on": "Game on!", "game-shot": "Game shot!", "game-shot-match": "Game, shot, and the match!", "no-score-bust": "No score! Bust.", bust: "Bust.", treble: "treble", double: "double", single: "single", bull: "bull", "outer-bull": "outer bull", hit: "Hit!", missed: "Missed.", "no-points-lost": "No points lost.", saved: "Saved by the bull!", checkout: "Checkout", level: "level", "what-a-checkout": "What a checkout!", yes: "Yes!", "wonderful-darts": "Wonderful darts!", "a-ton": "A ton!", "ton-forty": "Ton forty!", "ton-sixty": "Ton sixty!", "bed-and-breakfast": "Twenty six. Bed and breakfast.", "takes-leg": "takes the leg.", "the-big-fish": "The big fish! One hundred and seventy! Game shot!", "what-a-finish": "What a finish!", "voice-control-on": "Voice control on. Say your score.", undone: "Undone.", "to-throw-again": "to throw again.", points: "points", has: "has", minus: "minus", wins: "wins!", with: "with", "stays-on-level": "stays on level", "caller-on": "Caller on.", killer: "Killer!", "is-a-killer": "is a killer!", loses: "loses", letter: "letter", letters: "letters", "is-out": "is out!", "gets-back": "gets back", "your-number-is": "your number is", "throw-one-dart": "Throw one dart for your number.", miss: "Miss.", "no-effect": "No effect.", "last-one-standing": "Last one standing!", "get-killing": "Get killing!", "need-more-letters": "you need more letters first.", "watch-out": "Watch out,", "is-looking-nervous": "is looking nervous.", "has-it-coming": "has it coming.", "in-your-sights": "is in your sights.", "hit-the-bull": "hit the bull to become a killer.", "you-are-a-killer": "you're a killer.", "not-a-killer-yet": "you're not a killer yet.", "still-not-a-killer": "still not a killer.", "no-mercy": "No mercy.", "make-them-suffer": "Make them suffer.", "who-fancies-it": "Who fancies it?", "pick-your-victim": "Pick your victim.", "get-your-act-together": "Get your act together.", "youre-wounded": "You're wounded, and it shows.", "dont-panic": "Don't panic.", "the-bull-is-waiting": "The bull's waiting for you.", "no-pressure": "No pressure.", goodnight: "Goodnight!", "off-to-the-bar": "Off you go to the bar.", cheerio: "Cheerio!", "that-hurt": "That hurt.", ouch: "Ouch!", brutal: "Brutal!", "dear-oh-dear": "Dear oh dear.", "nothing-at-all": "Nothing at all.", "oh-dear": "Oh dear.", shocking: "Shocking.", unlucky: "Unlucky.", lovely: "Lovely darts.", "bull-but-letters": "has hit the bull. Get the letters back and you're a killer." };
   const bank = { status: {}, names: {}, manifest: {} };
   const bankBase = v => `sounds/voice/${v}/`;
@@ -1340,11 +1341,12 @@
         <div class="card span2">
           <h2>Caller voice</h2>
           <div class="opts" role="group" aria-label="Caller voice" style="margin-bottom:12px">
+            <button type="button" class="opt" data-caller="george" aria-pressed="${state.callerVoice === "george"}" style="font-size:22px">George<small>arena caller</small></button>
             <button type="button" class="opt" data-caller="serena" aria-pressed="${state.callerVoice === "serena"}" style="font-size:22px">Serena<small>recorded</small></button>
             <button type="button" class="opt" data-caller="daniel" aria-pressed="${state.callerVoice === "daniel"}" style="font-size:22px">Daniel<small>recorded</small></button>
             <button type="button" class="opt" data-caller="device" aria-pressed="${state.callerVoice === "device"}" style="font-size:22px">Device<small>this phone's voice</small></button>
           </div>
-          <p class="rules-note">Serena and Daniel are recordings, so they sound the same on every phone. ${location.protocol === "file:" || /claudeusercontent|claude\.ai/i.test(location.hostname) ? "They play on the website version; here the device voice is used." : "Names not in the recorded set are shown on screen rather than spoken."}</p>
+          <p class="rules-note">George, Serena and Daniel are recordings, so they sound the same on every phone. ${location.protocol === "file:" || /claudeusercontent|claude\.ai/i.test(location.hostname) ? "They play on the website version; here the device voice is used." : "Names not in the recorded set are shown on screen rather than spoken."}</p>
           ${IN_CLAUDE_APP ? `<p class="rules-note" style="color:var(--red-2);font-weight:600">The device voice doesn't play inside the Claude app's own window. Use Serena or Daniel, or open the page in Safari or Chrome.</p>` : ""}
           ${canSpeak ? `<div class="field" style="flex-wrap:wrap;align-items:center">
             <button class="btn-ghost" id="voiceBtn2" type="button" aria-pressed="${state.voice}">${state.voice ? "🔊 Caller on" : "🔇 Caller off"}</button>
@@ -1367,7 +1369,7 @@
           : `<p class="rules-note">In Chrome or Edge: open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. In Safari on a Mac: File, then Add to Dock.</p>`}
           ${("caches" in window) && state.callerVoice !== "device" && !/claudeusercontent|claude\.ai/i.test(location.hostname) && location.protocol !== "file:" ? `
           <div class="sub-h" style="margin-top:16px">Caller without a signal</div>
-          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 5 MB, once.</p>
+          <p class="rules-note">Keep ${BANKS[state.callerVoice] || "the"} voice on this phone so the caller works in a pub with no reception. About 7 MB, once.</p>
           <div class="field" style="align-items:center"><button class="btn quiet" id="keepVoiceBtn" type="button" style="padding:10px 16px;font-size:16px">Keep ${BANKS[state.callerVoice] || ""} on this phone</button><span id="keepVoiceStatus" class="rules-note" style="margin:0"></span></div>` : ""}
         </div>
 
