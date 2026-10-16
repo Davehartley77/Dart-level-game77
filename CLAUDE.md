@@ -19,7 +19,7 @@ A darts scoring app for a few friends: **Saved by the Bull** (the main game, rul
 
 ## How it's published
 - A Claude artifact page (the `index.html` page plus files) for quick previews.
-- The repo on GitHub (`main` branch). `sounds/README.md` says the website picks up pushes within a minute, which suggests GitHub Pages. Check repo Settings → Pages to confirm.
+- **Live site: GitHub Pages**, built from the `main` branch: https://davehartley77.github.io/Dart-level-game77/. Every push to `main` goes live in about a minute (the "pages build and deployment" run in GitHub Actions). Only push to `main` once the owner has said to make it live.
 
 ## Working notes
 - Develop on the session branch, then merge to `main`.
